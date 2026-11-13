@@ -130,10 +130,9 @@ export class CreditLedgerService {
     await queryRunner.startTransaction('READ COMMITTED');
 
     try {
-      // 3. Pessimistic row locking
+      // 3. Pessimistic row locking (do not include relations here to prevent outer join FOR UPDATE in PostgreSQL)
       const client = await queryRunner.manager.findOne(ClientCreditProfile, {
         where: { id: dto.client_id },
-        relations: { employer_company: true },
         lock: { mode: 'pessimistic_write' },
       });
 
