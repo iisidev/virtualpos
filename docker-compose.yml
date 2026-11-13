@@ -17,7 +17,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-pos_admin} -d ${DB_NAME:-corp_credit_pos}" ]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pos_admin} -d ${DB_NAME:-corp_credit_pos}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -37,7 +37,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secure_pass_2026}", "ping" ]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secure_pass_2026}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -51,10 +51,16 @@ services:
     image: ghcr.io/openclaw/openclaw:latest
     container_name: corpcredit-openclaw
     restart: always
-    entrypoint: [ "/bin/sh", "-c" ]
+    entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        mkdir -p /home/node/.openclaw
+        mkdir -p /home/node/.openclaw/workspace
+        if [ ! -d "/home/node/.openclaw/workspace/.git" ] || ! git -C /home/node/.openclaw/workspace rev-parse HEAD >/dev/null 2>&1; then
+          git -C /home/node/.openclaw/workspace init
+          git -C /home/node/.openclaw/workspace config user.email "openclaw@local"
+          git -C /home/node/.openclaw/workspace config user.name "OpenClaw"
+          git -C /home/node/.openclaw/workspace commit --allow-empty -m "Initial workspace commit"
+        fi
         node -e '
           const fs = require("fs");
           const p = "/home/node/.openclaw/openclaw.json";
@@ -68,6 +74,13 @@ services:
           cfg.gateway.port = 18789;
           cfg.gateway.auth = cfg.gateway.auth || {};
           cfg.gateway.auth.token = process.env.OPENCLAW_GATEWAY_TOKEN || "pos_virtual_claw_token_2026";
+          cfg.gateway.controlUi = cfg.gateway.controlUi || {};
+          cfg.gateway.controlUi.allowedOrigins = [
+            "http://localhost:18789",
+            "http://127.0.0.1:18789",
+            "http://localhost:22088",
+            "http://100.122.35.118:22088"
+          ];
           cfg.memory = cfg.memory || {};
           cfg.memory.search = cfg.memory.search || {};
           cfg.memory.search.provider = "none";
