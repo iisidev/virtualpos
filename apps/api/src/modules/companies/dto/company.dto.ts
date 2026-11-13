@@ -74,3 +74,4 @@ export class UpdateCompanyDto {
   @IsOptional()
   status?: CompanyStatus;
 }
+

@@ -264,14 +264,18 @@ export class LoginComponent {
     this.loading = true;
     this.errorMessage = '';
 
-    this.auth.login(this.username, this.password).subscribe({
+    this.auth.login(this.username.trim(), this.password).subscribe({
       next: () => {
         this.loading = false;
         this.router.navigate(['/pos']);
       },
       error: (err) => {
         this.loading = false;
-        this.errorMessage = err.error?.message || 'Usuario o contraseña inválidos';
+        if (err.status === 0) {
+          this.errorMessage = 'No se pudo conectar con el servidor backend (HTTP 0). Verifique que el servicio corpcredit-api esté iniciado en el puerto 22300.';
+        } else {
+          this.errorMessage = err.error?.message || 'Usuario o contraseña inválidos';
+        }
       },
     });
   }

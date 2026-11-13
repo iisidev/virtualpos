@@ -11,3 +11,4 @@ import { CatalogsController } from './catalogs.controller';
   exports: [CatalogsService],
 })
 export class CatalogsModule {}
+

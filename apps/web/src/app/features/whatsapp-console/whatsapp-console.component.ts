@@ -55,8 +55,8 @@ interface SimulatedInteraction {
               <strong>SERVICIO ACTIVO (ONLINE)</strong>
             </div>
             <div class="meta-row">
-              <span>Gateway:</span>
-              <strong>OpenClaw Enterprise</strong>
+              <span>Gateway Image:</span>
+              <strong style="font-size: 0.75rem;">ghcr.io/openclaw/openclaw:latest</strong>
             </div>
             <div class="meta-row">
               <span>Puerto Host:</span>
@@ -64,7 +64,11 @@ interface SimulatedInteraction {
             </div>
             <div class="meta-row">
               <span>Puerto Contenedor:</span>
-              <strong>8080 (corpcredit-openclaw)</strong>
+              <strong>18789 (openclaw-gateway)</strong>
+            </div>
+            <div class="meta-row">
+              <span>Token Acceso UI:</span>
+              <code style="color: var(--emerald-main); font-weight: 700;">pos_virtual_claw_token_2026</code>
             </div>
             <div class="meta-row">
               <span>Destino Webhook:</span>

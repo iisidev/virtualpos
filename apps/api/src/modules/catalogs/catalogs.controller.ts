@@ -55,3 +55,4 @@ export class CatalogsController {
     return this.catalogsService.toggleStatus(id);
   }
 }
+
