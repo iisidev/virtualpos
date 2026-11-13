@@ -1,4 +1,12 @@
-import { IsNotEmpty, IsNumber, IsPositive, IsString, IsUUID, IsOptional, MaxLength } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsPositive,
+  IsString,
+  IsUUID,
+  IsOptional,
+  MaxLength,
+} from 'class-validator';
 
 export class ChargeRequestDto {
   @IsUUID('4', { message: 'El clientId debe ser un UUID válido' })
@@ -6,12 +14,12 @@ export class ChargeRequestDto {
   client_id!: string;
 
   @IsUUID('4', { message: 'El merchantCompanyId debe ser un UUID válido' })
-  @IsNotEmpty({ message: 'La empresa comercio es obligatoria' })
-  merchant_company_id!: string;
+  @IsOptional()
+  merchant_company_id?: string;
 
   @IsUUID('4', { message: 'El cashRegisterId debe ser un UUID válido' })
-  @IsNotEmpty({ message: 'La caja registradora es obligatoria' })
-  cash_register_id!: string;
+  @IsOptional()
+  cash_register_id?: string;
 
   @IsNumber({ maxDecimalPlaces: 2 }, { message: 'El monto debe tener máximo 2 decimales' })
   @IsPositive({ message: 'El monto a cobrar debe ser mayor a cero' })
@@ -34,4 +42,3 @@ export class ChargeRequestDto {
   @IsString()
   notes?: string;
 }
-

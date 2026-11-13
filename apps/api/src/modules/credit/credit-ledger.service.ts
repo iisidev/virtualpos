@@ -177,9 +177,31 @@ export class CreditLedgerService {
       client.used_balance = newUsed.toFixed(2);
       await queryRunner.manager.save(ClientCreditProfile, client);
 
+      // Resolve Cash Register (with fallback to default open register)
+      let cashRegister: CashRegister | null = null;
+      if (dto.cash_register_id) {
+        cashRegister = await queryRunner.manager.findOne(CashRegister, {
+          where: { id: dto.cash_register_id },
+          relations: { company: true },
+        });
+      }
+
+      if (!cashRegister) {
+        cashRegister = await queryRunner.manager.findOne(CashRegister, {
+          relations: { company: true },
+        });
+      }
+
+      if (!cashRegister) {
+        throw new BadRequestException('No existe ninguna terminal de caja registrada en el sistema');
+      }
+
+      const merchantCompanyId =
+        dto.merchant_company_id || cashRegister.company_id || client.employer_company_id;
+
       // Voucher counter per cash register
       const count = await queryRunner.manager.count(CreditTransaction, {
-        where: { cash_register_id: dto.cash_register_id },
+        where: { cash_register_id: cashRegister.id },
       });
       const voucherNumber = `VOUCH-${(count + 1).toString().padStart(6, '0')}`;
       const authCode = this.generateAuthCode();
@@ -199,8 +221,8 @@ export class CreditLedgerService {
         voucher_number: voucherNumber,
         idempotency_key: dto.idempotency_key,
         client_id: client.id,
-        merchant_company_id: dto.merchant_company_id,
-        cash_register_id: dto.cash_register_id,
+        merchant_company_id: merchantCompanyId,
+        cash_register_id: cashRegister.id,
         cashier_user_id: cashierUserId,
         external_invoice_number: dto.external_invoice_number.trim(),
         transaction_type: TransactionType.PURCHASE_CHARGE,
