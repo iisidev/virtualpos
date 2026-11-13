@@ -12,3 +12,4 @@ import { KioskController } from './kiosk.controller';
   exports: [KioskService],
 })
 export class KioskModule {}
+

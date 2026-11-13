@@ -55,3 +55,4 @@ export class CashRegister {
   @OneToMany(() => CreditTransaction, (tx) => tx.cash_register)
   transactions?: CreditTransaction[];
 }
+

@@ -458,3 +458,4 @@ export class KioskComponent implements OnInit, OnDestroy {
     return Number(val).toLocaleString('es-NI', { minimumFractionDigits: 2 });
   }
 }
+

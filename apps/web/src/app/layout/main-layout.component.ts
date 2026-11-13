@@ -232,3 +232,4 @@ export class MainLayoutComponent {
     return this.auth.hasRole(UserRole.CREDIT_MANAGER, UserRole.SUPER_ADMIN, UserRole.AUDITOR);
   }
 }
+

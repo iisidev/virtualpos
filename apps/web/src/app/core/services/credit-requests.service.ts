@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AuthService } from './auth.service';
+import { getApiBaseUrl } from '../config/api.config';
 
 export interface CreditRequestItem {
   id: string;
@@ -31,7 +32,7 @@ export interface CreditRequestItem {
   providedIn: 'root',
 })
 export class CreditRequestsService {
-  private readonly baseUrl = 'http://localhost:3000/api/v1/credit-requests';
+  private readonly baseUrl = `${getApiBaseUrl()}/credit-requests`;
 
   constructor(
     private readonly http: HttpClient,
@@ -57,3 +58,4 @@ export class CreditRequestsService {
     );
   }
 }
+

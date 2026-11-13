@@ -53,3 +53,4 @@ export class User {
   @JoinColumn({ name: 'company_id' })
   company?: Company | null;
 }
+

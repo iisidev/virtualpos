@@ -7,6 +7,7 @@ import {
   VoucherDetails,
   AvailabilityTicket,
 } from '../models';
+import { getApiBaseUrl } from '../config/api.config';
 
 export interface ChargePayload {
   client_id: string;
@@ -23,7 +24,7 @@ export interface ChargePayload {
   providedIn: 'root',
 })
 export class PosService {
-  private readonly baseUrl = 'http://localhost:3000/api/v1';
+  private readonly baseUrl = getApiBaseUrl();
 
   constructor(
     private readonly http: HttpClient,
@@ -81,3 +82,4 @@ export class PosService {
     );
   }
 }
+

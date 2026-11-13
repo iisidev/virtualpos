@@ -12,3 +12,4 @@ export class KioskController {
     return this.kioskService.getKioskProfile(query);
   }
 }
+

@@ -244,40 +244,33 @@ El voucher está maquetado en `@media print` bajo el estricto formato de comprob
 
 ---
 
-## 🚀 6. Guía de Despliegue y Ejecución Local
+## 🚀 6. Guía de Despliegue en Portainer & Docker Compose
 
-### Prerrequisitos
-* Node.js v20+ o v25+ con npm 10+
-* Docker & Docker Compose (para PostgreSQL 16 y Redis 7)
-* Ollama instalado localmente (con modelo `qwen2.5:7b`)
+El repositorio incluye soporte nativo para **Portainer Stacks** y **Docker Compose Multi-Contenedor** con construcción automatizada multi-stage para backend y frontend.
 
-### Paso 1: Clonar y Acceder al Repositorio
+### 6.1 Despliegue en Portainer (Recomendado para Producción)
+1. Ingrese a su panel de **Portainer**.
+2. Vaya a **Stacks** -> **Add stack**.
+3. Seleccione el método **Repository**:
+   - **Repository URL:** `https://github.com/iisidev/virtualpos.git`
+   - **Repository reference:** `refs/heads/isaac`
+   - **Compose path:** `docker-compose.yml`
+4. En la sección **Environment variables**, cargue las variables de entorno deseadas (o use los valores por defecto del archivo `.env.example`).
+5. Haga clic en **Deploy the stack**. Portainer compilará y levantará automáticamente los 4 contenedores:
+   - `corpcredit-web`: Nginx Alpine sirviendo Angular 18 SPA con proxy inverso a `/api/` (Puerto `80`).
+   - `corpcredit-api`: NestJS 11 con Node 20 Alpine y healthcheck (Puerto `3000`).
+   - `corpcredit-postgres`: PostgreSQL 16 Alpine con persistencia en volumen `postgres_data` (Puerto `5432`).
+   - `corpcredit-redis`: Redis 7 Alpine para bloqueos distribuidos e idempotencia (Puerto `6379`).
+
+### 6.2 Despliegue Local por Terminal
 ```bash
 git clone -b isaac https://github.com/iisidev/virtualpos.git
 cd virtualpos
+docker compose up -d --build
 ```
-
-### Paso 2: Iniciar Servicios de Infraestructura (PostgreSQL & Redis)
-```bash
-docker compose -f docker/docker-compose.yml up -d
-```
-
-### Paso 3: Configurar e Iniciar Backend (NestJS)
-```bash
-cd apps/api
-# El archivo .env ya viene preconfigurado con valores de desarrollo
-npm run start:dev
-```
-*API disponible en:* `http://localhost:3000/api/v1`
-
-### Paso 4: Iniciar Frontend (Angular 18)
-En una nueva terminal:
-```bash
-cd apps/web
-npm start
-```
-*Aplicación web disponible en:* `http://localhost:4200`
-*Kiosco público disponible en:* `http://localhost:4200/kiosk`
+*Frontend Web disponible en:* `http://localhost` (o puerto `80`)
+*Backend API disponible en:* `http://localhost:3000/api/v1`
+*Kiosco disponible en:* `http://localhost/kiosk`
 
 ### Paso 5: Iniciar Modelo de IA en Ollama (Opcional para WhatsApp)
 ```bash
@@ -306,3 +299,4 @@ El sistema se auto-inicializa en el primer arranque con los siguientes perfiles:
 
 ## 📄 8. Licencia
 Este proyecto está licenciado bajo los términos de la licencia [MIT](LICENSE).
+

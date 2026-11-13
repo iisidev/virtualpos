@@ -8,3 +8,4 @@ import { CreditModule } from '../credit/credit.module';
   controllers: [PosController],
 })
 export class PosModule {}
+

@@ -72,3 +72,4 @@ export class UpdateClientStatusDto {
   @IsNotEmpty()
   reason!: string;
 }
+

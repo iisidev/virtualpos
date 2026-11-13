@@ -27,3 +27,4 @@ export class CashRegistersController {
     return this.service.updateStatus(id, status);
   }
 }
+
