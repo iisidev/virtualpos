@@ -32,8 +32,15 @@ El sistema resuelve la problemática de autorización, cobro inmediato y deducci
 * **Cobro Seguro con Idempotencia:** Prevención estricta de doble cobro mediante clave de idempotencia única registrada en Redis y base de datos.
 * **Anulación y Reversión Inmutable:** Permite anular compras con motivo obligatorio, restaurando el saldo en el libro mayor contable y generando un registro auditado de contracargo.
 
-### 👥 Administración y Gestión de Crédito (Gerencia & RRHH)
-* **Directorio de Clientes con Filtros Multidimensionales:** Filtre por empresa empleadora, cargo, categoría salarial, tipificación (`VIP`, `PLANTA`, `EJECUTIVO`, `TEMPORAL`) y estado de crédito.
+### 👥 Administración Central y Control de Acceso (RBAC)
+* **Panel de Administración Central (`/admin`):**
+  * **Gestión Multi-Empresa:** Registro y administración de empresas empleadoras (cuyos colaboradores reciben crédito) y cadenas comerciales afiliadas (con cajas POS).
+  * **Usuarios y Roles (RBAC):** Creación y edición de credenciales y roles (`SUPER_ADMIN`, `CREDIT_MANAGER`, `CASHIER`, `AUDITOR`) con asignación opcional de empresa o acceso corporativo global.
+  * **Catálogos Maestros:** Gestión dinámica de Cargos/Puestos de trabajo, Grados Salariales escalonados (`G-1` a `G-6`), y Tipificaciones de cliente (`PLANTA`, `CONFIANZA`, `VIP`, `TEMPORAL`).
+* **Directorio y CRUD Completo de Clientes (`/clients`):**
+  * Alta de colaboradores con asignación inmediata de empresa empleadora, cargo, grado, clasificación, salario (cifrado en reposo) y límite de crédito aprobado.
+  * Modificación integral de perfil y ajuste transaccional de balance.
+  * Bloqueo y desbloqueo preventivo con registro obligatorio de justificación en auditoría.
 * **Seguridad de Salarios:** Salarios cifrados en reposo mediante **AES-256-GCM** y restringidos por rol (visibles únicamente para Gerente de Crédito y Super Admin; ocultos para Cajeros y Auditores).
 * **Bandeja de Aprobación de Aumentos:** Evaluación y aprobación/rechazo en un clic de solicitudes de incremento de límite recibidas por WhatsApp o portal.
 

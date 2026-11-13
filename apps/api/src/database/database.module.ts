@@ -10,6 +10,7 @@ import {
   CreditIncreaseRequest,
   ImportBatchLog,
   AuditLog,
+  CatalogItem,
 } from './entities';
 
 @Module({
@@ -33,6 +34,7 @@ import {
           CreditIncreaseRequest,
           ImportBatchLog,
           AuditLog,
+          CatalogItem,
         ],
         synchronize: config.get<string>('DB_SYNCHRONIZE', 'true') === 'true',
         logging: config.get<string>('DB_LOGGING', 'false') === 'true',
@@ -47,9 +49,9 @@ import {
       CreditIncreaseRequest,
       ImportBatchLog,
       AuditLog,
+      CatalogItem,
     ]),
   ],
   exports: [TypeOrmModule],
 })
 export class DatabaseModule {}
-

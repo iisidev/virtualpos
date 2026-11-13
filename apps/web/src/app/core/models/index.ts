@@ -13,6 +13,112 @@ export interface User {
   company_id?: string | null;
 }
 
+export interface AdminUser {
+  id: string;
+  username: string;
+  full_name: string;
+  role: UserRole;
+  company_id?: string | null;
+  company_name?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+}
+
+export interface CreateUserPayload {
+  username: string;
+  password: string;
+  full_name: string;
+  role: UserRole;
+  company_id?: string | null;
+  is_active?: boolean;
+}
+
+export interface UpdateUserPayload {
+  username?: string;
+  password?: string;
+  full_name?: string;
+  role?: UserRole;
+  company_id?: string | null;
+  is_active?: boolean;
+}
+
+export interface Company {
+  id: string;
+  code: string;
+  name: string;
+  ruc: string;
+  address: string;
+  phone: string;
+  is_employer: boolean;
+  is_merchant: boolean;
+  status: 'ACTIVE' | 'INACTIVE';
+  created_at: string;
+  cash_registers?: Array<{
+    id: string;
+    terminal_code: string;
+    name: string;
+    location: string;
+    status: string;
+  }>;
+}
+
+export interface CreateCompanyPayload {
+  code: string;
+  name: string;
+  ruc: string;
+  address?: string;
+  phone?: string;
+  is_employer?: boolean;
+  is_merchant?: boolean;
+  status?: 'ACTIVE' | 'INACTIVE';
+}
+
+export interface UpdateCompanyPayload {
+  code?: string;
+  name?: string;
+  ruc?: string;
+  address?: string;
+  phone?: string;
+  is_employer?: boolean;
+  is_merchant?: boolean;
+  status?: 'ACTIVE' | 'INACTIVE';
+}
+
+export enum CatalogCategory {
+  JOB_TITLE = 'JOB_TITLE',
+  GRADE_LEVEL = 'GRADE_LEVEL',
+  CLASSIFICATION = 'CLASSIFICATION',
+}
+
+export interface CatalogItem {
+  id: string;
+  category: CatalogCategory;
+  code: string;
+  name: string;
+  description: string;
+  order_index: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCatalogPayload {
+  category: CatalogCategory;
+  code: string;
+  name: string;
+  description?: string;
+  order_index?: number;
+}
+
+export interface UpdateCatalogPayload {
+  code?: string;
+  name?: string;
+  description?: string;
+  order_index?: number;
+}
+
 export interface AuthResponse {
   access_token: string;
   user: User;
@@ -40,6 +146,38 @@ export interface ClientProfile {
   credit_status: 'ACTIVE' | 'FROZEN' | 'BLOCKED' | 'PENDING_APPROVAL';
   status_color_class: 'emerald' | 'amber' | 'red';
   created_at: string;
+}
+
+export interface CreateClientPayload {
+  employer_company_id: string;
+  employee_code: string;
+  national_id: string;
+  first_name: string;
+  last_name: string;
+  job_title: string;
+  grade_level?: string;
+  classification?: string;
+  salary?: number;
+  whatsapp_phone: string;
+  birth_date?: string;
+  approved_limit: number;
+  credit_status?: 'ACTIVE' | 'FROZEN' | 'BLOCKED' | 'PENDING_APPROVAL';
+}
+
+export interface UpdateClientPayload {
+  employer_company_id?: string;
+  employee_code?: string;
+  national_id?: string;
+  first_name?: string;
+  last_name?: string;
+  job_title?: string;
+  grade_level?: string;
+  classification?: string;
+  salary?: number;
+  whatsapp_phone?: string;
+  birth_date?: string;
+  approved_limit?: number;
+  credit_status?: 'ACTIVE' | 'FROZEN' | 'BLOCKED' | 'PENDING_APPROVAL';
 }
 
 export interface VoucherDetails {
@@ -114,4 +252,3 @@ export interface KioskDisplayData {
   whatsapp_qr_url: string;
   auto_reset_seconds: number;
 }
-

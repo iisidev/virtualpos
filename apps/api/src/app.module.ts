@@ -12,6 +12,8 @@ import { ImportExportModule } from './modules/import-export/import-export.module
 import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { CreditRequestsModule } from './modules/credit-requests/credit-requests.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { CatalogsModule } from './modules/catalogs/catalogs.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -21,8 +23,10 @@ import { AuditModule } from './modules/audit/audit.module';
     }),
     DatabaseModule,
     AuthModule,
+    UsersModule,
     CompaniesModule,
     CashRegistersModule,
+    CatalogsModule,
     ClientsModule,
     CreditModule,
     PosModule,

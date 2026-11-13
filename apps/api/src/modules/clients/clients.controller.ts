@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Body,
   Param,
@@ -9,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ClientsService, ClientProfileResponse } from './clients.service';
-import { CreateClientDto, UpdateClientStatusDto } from './dto/client.dto';
+import { CreateClientDto, UpdateClientDto, UpdateClientStatusDto } from './dto/client.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -67,6 +68,16 @@ export class ClientsController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ClientProfileResponse> {
     return this.clientsService.create(dto, user.userId);
+  }
+
+  @Put(':id')
+  @Roles(UserRole.CREDIT_MANAGER, UserRole.SUPER_ADMIN)
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateClientDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ClientProfileResponse> {
+    return this.clientsService.update(id, dto, user.userId);
   }
 
   @Patch(':id/status')

@@ -111,3 +111,4 @@ app.listen(port, '0.0.0.0', () => {
   console.log(`🟢 OpenClaw WhatsApp Gateway activo en http://0.0.0.0:${port}`);
   console.log(`🔗 Webhook destino configurado: ${webhookUrl}`);
 });
+

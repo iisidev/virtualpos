@@ -11,7 +11,7 @@ import { Company } from '../../database/entities/company.entity';
 import { AuditLog } from '../../database/entities/audit-log.entity';
 import { CreditStatus, UserRole } from '../../common/enums';
 import { CryptoService } from '../../common/crypto/crypto.service';
-import { CreateClientDto, UpdateClientStatusDto } from './dto/client.dto';
+import { CreateClientDto, UpdateClientDto, UpdateClientStatusDto } from './dto/client.dto';
 
 export interface ClientProfileResponse {
   id: string;
@@ -177,6 +177,96 @@ export class ClientsService implements OnModuleInit {
       relations: { employer_company: true },
     });
 
+    return this.formatResponse(full, UserRole.CREDIT_MANAGER);
+  }
+
+  async update(
+    id: string,
+    dto: UpdateClientDto,
+    userId: string,
+  ): Promise<ClientProfileResponse> {
+    const client = await this.clientRepository.findOne({
+      where: { id },
+      relations: { employer_company: true },
+    });
+    if (!client) {
+      throw new NotFoundException('Cliente no encontrado');
+    }
+
+    const previousData = {
+      first_name: client.first_name,
+      last_name: client.last_name,
+      national_id: client.national_id,
+      employee_code: client.employee_code,
+      job_title: client.job_title,
+      grade_level: client.grade_level,
+      classification: client.classification,
+      approved_limit: client.approved_limit,
+      available_balance: client.available_balance,
+      credit_status: client.credit_status,
+    };
+
+    if (dto.national_id && dto.national_id.trim() !== client.national_id) {
+      const existing = await this.clientRepository.findOne({
+        where: { national_id: dto.national_id.trim() },
+      });
+      if (existing) {
+        throw new ConflictException('La cédula ingresada ya está registrada para otro cliente');
+      }
+      client.national_id = dto.national_id.trim();
+    }
+
+    if (dto.employee_code && dto.employee_code.trim() !== client.employee_code) {
+      const existing = await this.clientRepository.findOne({
+        where: { employee_code: dto.employee_code.trim() },
+      });
+      if (existing) {
+        throw new ConflictException('El código de carnet ingresado ya está registrado para otro cliente');
+      }
+      client.employee_code = dto.employee_code.trim();
+    }
+
+    if (dto.employer_company_id) client.employer_company_id = dto.employer_company_id;
+    if (dto.first_name !== undefined) client.first_name = dto.first_name.trim();
+    if (dto.last_name !== undefined) client.last_name = dto.last_name.trim();
+    if (dto.job_title !== undefined) client.job_title = dto.job_title.trim();
+    if (dto.grade_level !== undefined) client.grade_level = dto.grade_level.trim();
+    if (dto.classification !== undefined) client.classification = dto.classification.trim();
+    if (dto.whatsapp_phone !== undefined) client.whatsapp_phone = dto.whatsapp_phone.trim();
+    if (dto.birth_date !== undefined) client.birth_date = dto.birth_date || null;
+    if (dto.credit_status !== undefined) client.credit_status = dto.credit_status;
+
+    if (dto.salary !== undefined) {
+      client.salary_encrypted = dto.salary
+        ? this.cryptoService.encrypt(dto.salary.toFixed(2))
+        : null;
+    }
+
+    if (dto.approved_limit !== undefined) {
+      const newLimit = Number(dto.approved_limit);
+      const used = Number(client.used_balance);
+      const newAvailable = Math.max(0, newLimit - used);
+      client.approved_limit = newLimit.toFixed(2);
+      client.available_balance = newAvailable.toFixed(2);
+    }
+
+    await this.clientRepository.save(client);
+
+    const audit = this.auditRepository.create({
+      action: 'CLIENT_PROFILE_UPDATED',
+      entity_type: 'ClientCreditProfile',
+      entity_id: client.id,
+      previous_data: JSON.stringify(previousData),
+      new_data: JSON.stringify(dto),
+      performed_by_user_id: userId,
+      created_at: new Date(),
+    });
+    await this.auditRepository.save(audit);
+
+    const full = await this.clientRepository.findOneOrFail({
+      where: { id: client.id },
+      relations: { employer_company: true },
+    });
     return this.formatResponse(full, UserRole.CREDIT_MANAGER);
   }
 
