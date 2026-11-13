@@ -11,8 +11,8 @@ import { getApiBaseUrl } from '../config/api.config';
 
 export interface ChargePayload {
   client_id: string;
-  merchant_company_id: string;
-  cash_register_id: string;
+  merchant_company_id?: string;
+  cash_register_id?: string;
   amount: number;
   external_invoice_number: string;
   idempotency_key: string;
@@ -80,6 +80,13 @@ export class PosService {
       { void_reason },
       { headers: this.getHeaders() },
     );
+  }
+
+  getCashRegisters(companyId?: string): Observable<any[]> {
+    const url = companyId
+      ? `${this.baseUrl}/cash-registers?companyId=${companyId}`
+      : `${this.baseUrl}/cash-registers`;
+    return this.http.get<any[]>(url, { headers: this.getHeaders() });
   }
 }
 

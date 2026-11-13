@@ -1,0 +1,15 @@
+{
+  "gateway": {
+    "mode": "local",
+    "bind": "lan",
+    "port": 18789,
+    "auth": {
+      "token": "pos_virtual_claw_token_2026"
+    }
+  },
+  "memory": {
+    "search": {
+      "provider": "none"
+    }
+  }
+}

@@ -51,19 +51,49 @@ services:
     image: ghcr.io/openclaw/openclaw:latest
     container_name: corpcredit-openclaw
     restart: always
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /home/node/.openclaw
+        node -e '
+          const fs = require("fs");
+          const p = "/home/node/.openclaw/openclaw.json";
+          let cfg = {};
+          try {
+            if (fs.existsSync(p)) cfg = JSON.parse(fs.readFileSync(p, "utf8"));
+          } catch (e) {}
+          cfg.gateway = cfg.gateway || {};
+          cfg.gateway.mode = "local";
+          cfg.gateway.bind = "lan";
+          cfg.gateway.port = 18789;
+          cfg.gateway.auth = cfg.gateway.auth || {};
+          cfg.gateway.auth.token = process.env.OPENCLAW_GATEWAY_TOKEN || "pos_virtual_claw_token_2026";
+          cfg.memory = cfg.memory || {};
+          cfg.memory.search = cfg.memory.search || {};
+          cfg.memory.search.provider = "none";
+          fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
+        '
+        exec node dist/index.js gateway --bind lan --port 18789 --allow-unconfigured
     environment:
       HOME: /home/node
       OPENCLAW_HOME: /home/node
+      TERM: xterm-256color
       OPENCLAW_STATE_DIR: /home/node/.openclaw
       OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
       OPENCLAW_CONFIG_DIR: /home/node/.openclaw
       OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
       OPENCLAW_GATEWAY_PORT: "18789"
+      OPENCLAW_GATEWAY_BIND: "lan"
+      OPENCLAW_GATEWAY_MODE: "local"
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-pos_virtual_claw_token_2026}
+      OPENCLAW_ALLOW_INSECURE_PRIVATE_WS: "1"
+      OPENCLAW_DISABLE_BONJOUR: "1"
     ports:
       - "${OPENCLAW_PORT:-22088}:18789"
     volumes:
       - openclaw_data:/home/node/.openclaw
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - corpcredit-net
 

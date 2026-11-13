@@ -27,7 +27,7 @@ import { VoucherComponent } from '../voucher/voucher.component';
       <div class="pos-ribbon bento-card">
         <div class="ribbon-title">
           <i class="cash register icon"></i>
-          <span>TERMINAL DE CAJA VIRTUAL</span>
+          <span>TERMINAL DE CAJA: {{ activeTerminal?.terminal_code || 'POS-CAJA-01' }} {{ activeTerminal?.name ? ' - ' + activeTerminal.name : '' }}</span>
         </div>
         <div class="ribbon-shortcuts">
           <span class="shortcut-item"><span class="key-badge">F2</span> Escanear Cédula / Carnet</span>
@@ -641,6 +641,8 @@ export class PosComponent implements OnInit {
   searching = false;
   searchError = '';
 
+  activeTerminal: any = null;
+
   chargeAmount: number | null = null;
   externalInvoice = 'FACT-2026-001';
   chargeNotes = '';
@@ -652,8 +654,22 @@ export class PosComponent implements OnInit {
   availabilityTicket: AvailabilityTicket | null = null;
 
   ngOnInit(): void {
+    this.loadActiveTerminal();
     this.onSearchClient();
     this.loadRecentTransactions();
+  }
+
+  loadActiveTerminal(): void {
+    this.posService.getCashRegisters().subscribe({
+      next: (registers) => {
+        if (registers && registers.length > 0) {
+          this.activeTerminal = registers[0];
+        }
+      },
+      error: (err) => {
+        console.warn('Terminal de caja no cargada automáticamente:', err);
+      },
+    });
   }
 
   // Global Ergonomic POS Keyboard Shortcuts: F2, F4, F8
@@ -710,15 +726,23 @@ export class PosComponent implements OnInit {
     this.processing = true;
     this.checkoutError = '';
 
-    const payload = {
+    const payload: any = {
       client_id: this.client.id,
-      merchant_company_id: this.auth.currentUser()?.company_id || this.client.employer_company_id,
-      cash_register_id: 'd9b6e82c-4a3f-42a9-9e81-7f9a12345678', // Default terminal
       amount: Number(this.chargeAmount),
       external_invoice_number: this.externalInvoice.trim(),
       idempotency_key: `pos_charge_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       notes: this.chargeNotes,
     };
+
+    if (this.activeTerminal?.id) {
+      payload.cash_register_id = this.activeTerminal.id;
+      payload.merchant_company_id =
+        this.activeTerminal.company_id ||
+        this.auth.currentUser()?.company_id ||
+        this.client.employer_company_id;
+    } else if (this.auth.currentUser()?.company_id) {
+      payload.merchant_company_id = this.auth.currentUser()?.company_id;
+    }
 
     this.posService.checkout(payload).subscribe({
       next: (voucher) => {
