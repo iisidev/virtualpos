@@ -47,3 +47,4 @@ HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
   CMD curl -f http://localhost:3000/api/v1/auth/me || exit 0
 
 CMD ["node", "dist/main.js"]
+
