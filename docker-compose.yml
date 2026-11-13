@@ -17,7 +17,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pos_admin} -d ${DB_NAME:-corp_credit_pos}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-pos_admin} -d ${DB_NAME:-corp_credit_pos}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -37,7 +37,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secure_pass_2026}", "ping"]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secure_pass_2026}", "ping" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -51,7 +51,7 @@ services:
     image: ghcr.io/openclaw/openclaw:latest
     container_name: corpcredit-openclaw
     restart: always
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
         mkdir -p /home/node/.openclaw
@@ -71,6 +71,8 @@ services:
           cfg.memory = cfg.memory || {};
           cfg.memory.search = cfg.memory.search || {};
           cfg.memory.search.provider = "none";
+          cfg.session = cfg.session || {};
+          cfg.session.dmScope = "per-channel-peer";
           fs.writeFileSync(p, JSON.stringify(cfg, null, 2));
         '
         exec node dist/index.js gateway --bind lan --port 18789 --allow-unconfigured
