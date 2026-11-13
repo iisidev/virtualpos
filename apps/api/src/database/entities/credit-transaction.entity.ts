@@ -107,3 +107,4 @@ export class CreditTransaction {
   @JoinColumn({ name: 'cashier_user_id' })
   cashier_user?: User;
 }
+

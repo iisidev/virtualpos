@@ -1,6 +1,9 @@
 version: '3.8'
 
 services:
+  # ----------------------------------------------------
+  # 1. DATABASE: PostgreSQL 16 (Ledger Inmutable)
+  # ----------------------------------------------------
   postgres:
     image: postgres:16-alpine
     container_name: corpcredit-postgres
@@ -18,7 +21,12 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - corpcredit-net
 
+  # ----------------------------------------------------
+  # 2. CACHE & LOCKS: Redis 7 Alpine
+  # ----------------------------------------------------
   redis:
     image: redis:7-alpine
     container_name: corpcredit-redis
@@ -33,6 +41,69 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - corpcredit-net
+
+  # ----------------------------------------------------
+  # 3. BACKEND API: NestJS 11
+  # ----------------------------------------------------
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    container_name: corpcredit-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      API_PREFIX: api/v1
+      JWT_SECRET: ${JWT_SECRET:-corp_credit_jwt_super_secret_key_2026_finance}
+      JWT_EXPIRES_IN: 24h
+      SALARY_ENCRYPTION_KEY: ${SALARY_ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-pos_admin}
+      DB_PASSWORD: ${DB_PASSWORD:-pos_secure_pass_2026}
+      DB_NAME: ${DB_NAME:-corp_credit_pos}
+      DB_SYNCHRONIZE: "true"
+      DB_LOGGING: "false"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secure_pass_2026}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+      WHATSAPP_PROVIDER: ${WHATSAPP_PROVIDER:-openclaw}
+      WHATSAPP_BOT_NUMBER: ${WHATSAPP_BOT_NUMBER:-50588888888}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-pos_virtual_verify_token_secure}
+      OPENCLAW_GATEWAY_URL: ${OPENCLAW_GATEWAY_URL:-http://host.docker.internal:8080/v1/messages}
+      OPENCLAW_API_KEY: ${OPENCLAW_API_KEY:-claw_sec_token_999}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - corpcredit-net
+
+  # ----------------------------------------------------
+  # 4. FRONTEND WEB: Angular 18 + Nginx
+  # ----------------------------------------------------
+  web:
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile
+    container_name: corpcredit-web
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-80}:80"
+    networks:
+      - corpcredit-net
 
 volumes:
   postgres_data:
@@ -40,3 +111,6 @@ volumes:
   redis_data:
     driver: local
 
+networks:
+  corpcredit-net:
+    driver: bridge

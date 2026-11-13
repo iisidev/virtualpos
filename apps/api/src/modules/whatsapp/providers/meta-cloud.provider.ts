@@ -57,3 +57,4 @@ Nuevo Disponible: ${voucher.currency} ${voucher.new_available_balance}`;
     return this.sendMessage(to, text);
   }
 }
+

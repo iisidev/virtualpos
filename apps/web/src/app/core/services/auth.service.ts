@@ -3,12 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 import { User, AuthResponse, UserRole } from '../models';
+import { getApiBaseUrl } from '../config/api.config';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
-  private readonly apiUrl = 'http://localhost:3000/api/v1/auth';
+  private readonly apiUrl = `${getApiBaseUrl()}/auth`;
   private readonly tokenKey = 'pos_access_token';
   private readonly userKey = 'pos_user_data';
 
@@ -57,3 +58,4 @@ export class AuthService {
     }
   }
 }
+

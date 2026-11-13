@@ -28,3 +28,4 @@ export class CompaniesController {
     return this.companiesService.findOne(id);
   }
 }
+

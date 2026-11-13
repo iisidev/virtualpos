@@ -24,3 +24,4 @@ export class MockWhatsAppProvider implements WhatsAppProviderInterface {
     return this.sendMessage(to, text);
   }
 }
+

@@ -21,3 +21,4 @@ export class AuthResponseDto {
     company_id?: string | null;
   };
 }
+

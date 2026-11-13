@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { AuthService } from '../../core/services/auth.service';
 import { ClientProfile } from '../../core/models';
+import { getApiBaseUrl } from '../../core/config/api.config';
 
 @Component({
   selector: 'app-clients-list',
@@ -224,7 +225,7 @@ export class ClientsListComponent implements OnInit {
     const token = this.auth.token();
     const headers = new HttpHeaders({ Authorization: `Bearer ${token || ''}` });
 
-    let url = 'http://localhost:3000/api/v1/clients?';
+    let url = `${getApiBaseUrl()}/clients?`;
     if (this.searchTerm) url += `search=${encodeURIComponent(this.searchTerm)}&`;
     if (this.filterClassification) url += `classification=${encodeURIComponent(this.filterClassification)}&`;
     if (this.filterStatus) url += `creditStatus=${encodeURIComponent(this.filterStatus)}&`;
@@ -243,7 +244,7 @@ export class ClientsListComponent implements OnInit {
 
     this.http
       .patch(
-        `http://localhost:3000/api/v1/clients/${client.id}/status`,
+        `${getApiBaseUrl()}/clients/${client.id}/status`,
         { credit_status: newStatus, reason: reason.trim() },
         { headers },
       )
@@ -257,3 +258,4 @@ export class ClientsListComponent implements OnInit {
     return Number(val).toLocaleString('es-NI', { minimumFractionDigits: 2 });
   }
 }
+

@@ -67,3 +67,4 @@ export class CreditIncreaseRequest {
   @JoinColumn({ name: 'reviewed_by' })
   reviewer?: User | null;
 }
+

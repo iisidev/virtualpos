@@ -9,3 +9,4 @@ export interface WhatsAppProviderInterface {
 
   sendInteractiveMenu(to: string, clientName: string): Promise<boolean>;
 }
+

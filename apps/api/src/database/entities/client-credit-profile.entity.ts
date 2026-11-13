@@ -95,3 +95,4 @@ export class ClientCreditProfile {
   @OneToMany(() => CreditIncreaseRequest, (req) => req.client)
   increase_requests?: CreditIncreaseRequest[];
 }
+

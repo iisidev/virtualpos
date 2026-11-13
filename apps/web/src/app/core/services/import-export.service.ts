@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AuthService } from './auth.service';
+import { getApiBaseUrl } from '../config/api.config';
 
 export interface DryRunResult {
   import_type: string;
@@ -35,7 +36,7 @@ export interface ImportBatchLog {
   providedIn: 'root',
 })
 export class ImportExportService {
-  private readonly baseUrl = 'http://localhost:3000/api/v1/import-export';
+  private readonly baseUrl = `${getApiBaseUrl()}/import-export`;
 
   constructor(
     private readonly http: HttpClient,
@@ -81,3 +82,4 @@ export class ImportExportService {
     });
   }
 }
+

@@ -2,12 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { KioskDisplayData } from '../models';
+import { getApiBaseUrl } from '../config/api.config';
 
 @Injectable({
   providedIn: 'root',
 })
 export class KioskService {
-  private readonly baseUrl = 'http://localhost:3000/api/v1/kiosk';
+  private readonly baseUrl = `${getApiBaseUrl()}/kiosk`;
 
   constructor(private readonly http: HttpClient) {}
 
@@ -17,3 +18,4 @@ export class KioskService {
     );
   }
 }
+

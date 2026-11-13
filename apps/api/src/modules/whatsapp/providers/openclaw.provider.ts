@@ -83,3 +83,4 @@ _También puedes escribir tu consulta en tus propias palabras (ej: "¿Cuánto me
     return this.sendMessage(to, menu);
   }
 }
+

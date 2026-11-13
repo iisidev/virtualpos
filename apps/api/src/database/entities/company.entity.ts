@@ -65,3 +65,4 @@ export class Company {
   @OneToMany(() => User, (user) => user.company)
   users?: User[];
 }
+

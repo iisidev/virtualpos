@@ -114,3 +114,4 @@ export interface KioskDisplayData {
   whatsapp_qr_url: string;
   auto_reset_seconds: number;
 }
+

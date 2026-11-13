@@ -31,3 +31,4 @@ import { OllamaService } from '../ai/ollama.service';
   exports: [WhatsAppService, OpenClawProvider, MockWhatsAppProvider],
 })
 export class WhatsAppModule {}
+

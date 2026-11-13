@@ -159,3 +159,4 @@ export class CreditRequestsComponent implements OnInit {
     return Number(val).toLocaleString('es-NI', { minimumFractionDigits: 2 });
   }
 }
+

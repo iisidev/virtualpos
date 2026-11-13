@@ -11,3 +11,4 @@ import { CashRegistersController } from './cash-registers.controller';
   exports: [CashRegistersService],
 })
 export class CashRegistersModule {}
+

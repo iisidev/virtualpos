@@ -29,3 +29,4 @@ export class CreditRequestsController {
     return this.service.reviewRequest(id, action, user.userId, notes);
   }
 }
+

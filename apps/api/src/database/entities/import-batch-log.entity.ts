@@ -51,3 +51,4 @@ export class ImportBatchLog {
   @JoinColumn({ name: 'executed_by_user_id' })
   executed_by?: User;
 }
+
