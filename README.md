@@ -256,9 +256,10 @@ El repositorio incluye soporte nativo para **Portainer Stacks** y **Docker Compo
    - **Repository reference:** `refs/heads/isaac`
    - **Compose path:** `docker-compose.yml`
 4. En la sección **Environment variables**, puede personalizar los valores si lo requiere (o usar los predeterminados en `.env.example`).
-5. Haga clic en **Deploy the stack**. Portainer compilará y levantará automáticamente los 4 contenedores en los puertos corporativos asignados (serie 22XXX):
+5. Haga clic en **Deploy the stack**. Portainer compilará y levantará automáticamente los 5 contenedores en los puertos corporativos asignados (serie 22XXX):
    - `corpcredit-web`: Nginx Alpine sirviendo Angular 18 SPA (Puerto Host: `22080` ➔ Contenedor: `80`).
    - `corpcredit-api`: NestJS 11 con Node 20 Alpine y healthcheck (Puerto Host: `22300` ➔ Contenedor: `3000`).
+   - `corpcredit-openclaw`: Microservicio Gateway de WhatsApp local (Puerto Host: `22088` ➔ Contenedor: `8080`).
    - `corpcredit-postgres`: PostgreSQL 16 Alpine con persistencia en `postgres_data` (Puerto Host: `22432` ➔ Contenedor: `5432`).
    - `corpcredit-redis`: Redis 7 Alpine para bloqueos distribuidos (Puerto Host: `22379` ➔ Contenedor: `6379`).
 
@@ -270,6 +271,7 @@ docker compose up -d --build
 ```
 *Frontend Web disponible en:* `http://localhost:22080`
 *Backend API disponible en:* `http://localhost:22300/api/v1`
+*OpenClaw Gateway disponible en:* `http://localhost:22088`
 *Kiosco disponible en:* `http://localhost:22080/kiosk`
 
 ### Paso 5: Iniciar Modelo de IA en Ollama (Opcional para WhatsApp)

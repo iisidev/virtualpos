@@ -45,7 +45,30 @@ services:
       - corpcredit-net
 
   # ----------------------------------------------------
-  # 3. BACKEND API: NestJS 11
+  # 3. WHATSAPP GATEWAY: OpenClaw Local Gateway
+  # ----------------------------------------------------
+  openclaw:
+    build:
+      context: ../apps/openclaw
+      dockerfile: Dockerfile
+    container_name: corpcredit-openclaw
+    restart: always
+    ports:
+      - "${OPENCLAW_PORT:-22088}:8080"
+    environment:
+      PORT: 8080
+      WEBHOOK_URL: http://api:3000/api/v1/whatsapp/webhook
+      API_KEY: ${OPENCLAW_API_KEY:-claw_sec_token_999}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - corpcredit-net
+
+  # ----------------------------------------------------
+  # 4. BACKEND API: NestJS 11
   # ----------------------------------------------------
   api:
     build:
@@ -57,6 +80,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      openclaw:
         condition: service_healthy
     ports:
       - "${API_PORT:-22300}:3000"
@@ -77,20 +102,16 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secure_pass_2026}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
-      WHATSAPP_PROVIDER: ${WHATSAPP_PROVIDER:-openclaw}
+      WHATSAPP_PROVIDER: openclaw
       WHATSAPP_BOT_NUMBER: ${WHATSAPP_BOT_NUMBER:-50588888888}
       WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-pos_virtual_verify_token_secure}
-      OPENCLAW_GATEWAY_URL: ${OPENCLAW_GATEWAY_URL:-http://host.docker.internal:8080/v1/messages}
+      OPENCLAW_GATEWAY_URL: http://openclaw:8080/v1/messages
       OPENCLAW_API_KEY: ${OPENCLAW_API_KEY:-claw_sec_token_999}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - corpcredit-net
 
   # ----------------------------------------------------
-  # 4. FRONTEND WEB: Angular 18 + Nginx
+  # 5. FRONTEND WEB: Angular 18 + Nginx
   # ----------------------------------------------------
   web:
     build:

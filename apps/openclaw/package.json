@@ -1,0 +1,13 @@
+{
+  "name": "openclaw-whatsapp-gateway",
+  "version": "1.0.0",
+  "description": "OpenClaw Local WhatsApp Gateway for Corp-Credit POS",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5"
+  }
+}

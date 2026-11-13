@@ -34,6 +34,9 @@ import { UserRole } from '../core/models';
             <a routerLink="/credit-requests" routerLinkActive="active" class="nav-item" *ngIf="canManageCredit()">
               <i class="chart line icon"></i> Solicitudes Límite
             </a>
+            <a routerLink="/whatsapp" routerLinkActive="active" class="nav-item">
+              <i class="whatsapp icon"></i> WhatsApp & OpenClaw
+            </a>
             <a routerLink="/kiosk" target="_blank" class="nav-item kiosk-link">
               <i class="tablet alternate icon"></i> Kiosco Tótem
             </a>
