@@ -6,6 +6,7 @@ import { PosComponent } from './features/pos/pos.component';
 import { ClientsListComponent } from './features/clients/clients-list.component';
 import { ImportExportComponent } from './features/import-export/import-export.component';
 import { CreditRequestsComponent } from './features/credit-requests/credit-requests.component';
+import { WhatsappConsoleComponent } from './features/whatsapp-console/whatsapp-console.component';
 import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -20,6 +21,7 @@ export const routes: Routes = [
       { path: 'clients', component: ClientsListComponent },
       { path: 'import-export', component: ImportExportComponent },
       { path: 'credit-requests', component: CreditRequestsComponent },
+      { path: 'whatsapp', component: WhatsappConsoleComponent },
       { path: '', redirectTo: 'pos', pathMatch: 'full' },
     ],
   },

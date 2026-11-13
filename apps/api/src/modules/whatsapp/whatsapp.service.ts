@@ -12,17 +12,16 @@ import {
   IncreaseRequestStatus,
   TransactionStatus,
 } from '../../common/enums';
-import { OllamaService } from '../ai/ollama.service';
 import { OpenClawProvider } from './providers/openclaw.provider';
-import { MetaCloudProvider } from './providers/meta-cloud.provider';
-import { MockWhatsAppProvider } from './providers/mock.provider';
 import { WhatsAppProviderInterface } from './interfaces/whatsapp-provider.interface';
+import { classifyWhatsAppIntent, WhatsAppIntent } from './whatsapp-intent.classifier';
+
+export { WhatsAppIntent };
 
 @Injectable()
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
   private provider: WhatsAppProviderInterface;
-  // Ephemeral state for registration / phone linking: Map<fromPhone, { step: string; attempts: number }>
   private readonly userSessionState = new Map<string, { step: string; attempts: number }>();
 
   constructor(
@@ -32,20 +31,18 @@ export class WhatsAppService {
     private readonly transactionRepository: Repository<CreditTransaction>,
     @InjectRepository(CreditIncreaseRequest)
     private readonly increaseRequestRepository: Repository<CreditIncreaseRequest>,
-    private readonly ollamaService: OllamaService,
     private readonly config: ConfigService,
     private readonly openClawProvider: OpenClawProvider,
-    private readonly metaCloudProvider: MetaCloudProvider,
-    private readonly mockProvider: MockWhatsAppProvider,
   ) {
-    const selected = this.config.get<string>('WHATSAPP_PROVIDER', 'openclaw').toLowerCase();
-    if (selected === 'meta') {
-      this.provider = this.metaCloudProvider;
-    } else if (selected === 'mock') {
-      this.provider = this.mockProvider;
-    } else {
-      this.provider = this.openClawProvider;
-    }
+    // OpenClaw is the primary real connected WhatsApp gateway
+    this.provider = this.openClawProvider;
+  }
+
+  /**
+   * Fast, deterministic NLP intent parser: Zero external AI dependencies or mocks.
+   */
+  classifyIntent(message: string): { intent: WhatsAppIntent; requestedAmount?: number } {
+    return classifyWhatsAppIntent(message);
   }
 
   /**
@@ -55,7 +52,7 @@ export class WhatsAppService {
     const cleanPhone = fromPhone.replace(/\D/g, '');
     const cleanText = messageText.trim();
 
-    this.logger.log(`Mensaje recibido de ${cleanPhone}: "${cleanText}"`);
+    this.logger.log(`[WhatsApp Webhook] Mensaje recibido de ${cleanPhone}: "${cleanText}"`);
 
     // 1. Look for client linked with this phone number
     let client = await this.clientRepository.findOne({
@@ -68,10 +65,10 @@ export class WhatsAppService {
       return this.handleUnlinkedUser(cleanPhone, cleanText);
     }
 
-    // 3. User is linked! Process AI classification or numeric menu
-    const classification = await this.ollamaService.classifyUserMessage(cleanText);
+    // 3. User is linked! Process deterministic intent
+    const { intent, requestedAmount } = this.classifyIntent(cleanText);
 
-    switch (classification.intent) {
+    switch (intent) {
       case 'CHECK_APPROVED': {
         const approvedFormatted = Number(client.approved_limit).toLocaleString('es-NI', {
           minimumFractionDigits: 2,
@@ -80,7 +77,7 @@ export class WhatsAppService {
 Estimado(a) *${client.first_name}*, su límite total autorizado por *${client.employer_company?.name || 'su empresa'}* es de:
 👉 *C$ ${approvedFormatted}*
 
-_Para consultar su saldo disponible para compras, escribe *2*._`;
+_Para consultar su saldo disponible para compras, escriba *2*._`;
         await this.provider.sendMessage(cleanPhone, reply);
         return reply;
       }
@@ -155,12 +152,12 @@ _Puede utilizar su cédula o código de carnet *${client.employee_code}* en las 
       }
 
       case 'REQUEST_INCREASE': {
-        const requestedAmt = classification.amount || Number(client.approved_limit) * 1.3;
+        const requestedAmt = requestedAmount || Number(client.approved_limit) * 1.3;
         const request = this.increaseRequestRepository.create({
           client_id: client.id,
           current_limit: client.approved_limit,
           requested_limit: requestedAmt.toFixed(2),
-          reason: `Solicitud automática vía WhatsApp Bot: "${cleanText}"`,
+          reason: `Solicitud vía WhatsApp Bot: "${cleanText}"`,
           channel: ChannelType.WHATSAPP_BOT,
           status: IncreaseRequestStatus.PENDING,
         });
@@ -184,7 +181,7 @@ Para emergencias, puede llamar directamente al teléfono corporativo de su empre
       }
 
       default: {
-        // Welcome and default menu
+        // Welcome and default interactive menu
         await this.provider.sendInteractiveMenu(cleanPhone, `${client.first_name} ${client.last_name}`);
         return 'MENU_SENT';
       }
@@ -192,18 +189,17 @@ Para emergencias, puede llamar directamente al teléfono corporativo de su empre
   }
 
   /**
-   * Secure self-linking flow: verifies Cedula + Birth Date or Employee Code
+   * Secure self-linking flow: verifies Cedula or Employee Code
    */
   private async handleUnlinkedUser(fromPhone: string, text: string): Promise<string> {
     const session = this.userSessionState.get(fromPhone) || { step: 'AWAITING_ID', attempts: 0 };
 
-    // Try parsing: user may have entered "001-121092-0000X" or "001-121092-0000X 1992-10-12"
     const tokens = text.split(/\s+/);
     let matchedClient: ClientCreditProfile | null = null;
 
     for (const token of tokens) {
       const trimmed = token.trim();
-      if (trimmed.length >= 8) {
+      if (trimmed.length >= 7) {
         matchedClient = await this.clientRepository.findOne({
           where: [{ national_id: trimmed }, { employee_code: trimmed }],
           relations: { employer_company: true },
@@ -213,7 +209,6 @@ Para emergencias, puede llamar directamente al teléfono corporativo de su empre
     }
 
     if (matchedClient) {
-      // Check if birth date matches if present in text or record
       matchedClient.whatsapp_phone = fromPhone;
       await this.clientRepository.save(matchedClient);
       this.userSessionState.delete(fromPhone);

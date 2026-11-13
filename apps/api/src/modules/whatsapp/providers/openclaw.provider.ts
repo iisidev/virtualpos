@@ -11,13 +11,17 @@ export class OpenClawProvider implements WhatsAppProviderInterface {
   private readonly apiKey: string;
 
   constructor(private readonly config: ConfigService) {
-    this.gatewayUrl = this.config.get<string>('OPENCLAW_GATEWAY_URL', 'http://localhost:8080/v1/messages');
-    this.apiKey = this.config.get<string>('OPENCLAW_API_KEY', 'claw_sec_token_999');
+    this.gatewayUrl =
+      process.env.OPENCLAW_GATEWAY_URL ||
+      this.config.get<string>('OPENCLAW_GATEWAY_URL', 'http://openclaw:8080/v1/messages');
+    this.apiKey =
+      process.env.OPENCLAW_API_KEY ||
+      this.config.get<string>('OPENCLAW_API_KEY', 'claw_sec_token_999');
   }
 
   async sendMessage(to: string, message: string): Promise<boolean> {
     try {
-      this.logger.log(`[OpenClaw Outbound] Enviando mensaje a ${to}...`);
+      this.logger.log(`[OpenClaw Outbound] Enviando mensaje a ${to} vía ${this.gatewayUrl}`);
       const response = await fetch(this.gatewayUrl, {
         method: 'POST',
         headers: {
@@ -36,9 +40,10 @@ export class OpenClawProvider implements WhatsAppProviderInterface {
         return false;
       }
       return true;
-    } catch {
-      this.logger.warn(`OpenClaw Gateway offline en ${this.gatewayUrl}. Mensaje simulado exitosamente en log.`);
-      return true;
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Error conectando con OpenClaw Gateway (${this.gatewayUrl}): ${errorMsg}`);
+      return false;
     }
   }
 
@@ -78,9 +83,8 @@ Escribe el número de la opción que deseas consultar:
 4️⃣ Historial de Movimientos (Últimos 5)
 5️⃣ Solicitar Nuevo Monto de Crédito
 
-_También puedes escribir tu consulta en tus propias palabras (ej: "¿Cuánto me queda para comprar hoy?")._`;
+_También puedes escribir tu consulta (ej: "¿Cuánto me queda disponible?")._`;
 
     return this.sendMessage(to, menu);
   }
 }
-

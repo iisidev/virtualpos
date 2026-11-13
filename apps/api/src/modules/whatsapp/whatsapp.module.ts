@@ -8,9 +8,6 @@ import {
 import { WhatsAppService } from './whatsapp.service';
 import { WhatsAppController } from './whatsapp.controller';
 import { OpenClawProvider } from './providers/openclaw.provider';
-import { MetaCloudProvider } from './providers/meta-cloud.provider';
-import { MockWhatsAppProvider } from './providers/mock.provider';
-import { OllamaService } from '../ai/ollama.service';
 
 @Module({
   imports: [
@@ -21,14 +18,7 @@ import { OllamaService } from '../ai/ollama.service';
     ]),
   ],
   controllers: [WhatsAppController],
-  providers: [
-    WhatsAppService,
-    OpenClawProvider,
-    MetaCloudProvider,
-    MockWhatsAppProvider,
-    OllamaService,
-  ],
-  exports: [WhatsAppService, OpenClawProvider, MockWhatsAppProvider],
+  providers: [WhatsAppService, OpenClawProvider],
+  exports: [WhatsAppService, OpenClawProvider],
 })
 export class WhatsAppModule {}
-
