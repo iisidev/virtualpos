@@ -7,6 +7,7 @@ import { ClientsListComponent } from './features/clients/clients-list.component'
 import { ImportExportComponent } from './features/import-export/import-export.component';
 import { CreditRequestsComponent } from './features/credit-requests/credit-requests.component';
 import { WhatsappConsoleComponent } from './features/whatsapp-console/whatsapp-console.component';
+import { AdminComponent } from './features/admin/admin.component';
 import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -19,6 +20,7 @@ export const routes: Routes = [
     children: [
       { path: 'pos', component: PosComponent },
       { path: 'clients', component: ClientsListComponent },
+      { path: 'admin', component: AdminComponent },
       { path: 'import-export', component: ImportExportComponent },
       { path: 'credit-requests', component: CreditRequestsComponent },
       { path: 'whatsapp', component: WhatsappConsoleComponent },

@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from '../../database/entities/company.entity';
 import { CompanyStatus } from '../../common/enums';
+import { CreateCompanyDto, UpdateCompanyDto } from './dto/company.dto';
 
 @Injectable()
 export class CompaniesService {
@@ -40,5 +45,77 @@ export class CompaniesService {
       throw new NotFoundException(`Empresa con ID ${id} no encontrada`);
     }
     return comp;
+  }
+
+  async create(dto: CreateCompanyDto, createdBy?: string): Promise<Company> {
+    const existingCode = await this.companyRepository.findOne({
+      where: { code: dto.code.trim().toUpperCase() },
+    });
+    if (existingCode) {
+      throw new ConflictException(`Ya existe una empresa con código '${dto.code}'`);
+    }
+
+    const existingRuc = await this.companyRepository.findOne({
+      where: { ruc: dto.ruc.trim() },
+    });
+    if (existingRuc) {
+      throw new ConflictException(`Ya existe una empresa con RUC '${dto.ruc}'`);
+    }
+
+    const company = this.companyRepository.create({
+      code: dto.code.trim().toUpperCase(),
+      name: dto.name.trim(),
+      ruc: dto.ruc.trim(),
+      address: dto.address?.trim() || '',
+      phone: dto.phone?.trim() || '',
+      is_employer: dto.is_employer ?? true,
+      is_merchant: dto.is_merchant ?? false,
+      status: dto.status ?? CompanyStatus.ACTIVE,
+      created_by: createdBy || 'SYSTEM',
+    });
+
+    return this.companyRepository.save(company);
+  }
+
+  async update(id: string, dto: UpdateCompanyDto): Promise<Company> {
+    const company = await this.findOne(id);
+
+    if (dto.code && dto.code.trim().toUpperCase() !== company.code) {
+      const existing = await this.companyRepository.findOne({
+        where: { code: dto.code.trim().toUpperCase() },
+      });
+      if (existing) {
+        throw new ConflictException(`El código '${dto.code}' ya está en uso`);
+      }
+      company.code = dto.code.trim().toUpperCase();
+    }
+
+    if (dto.ruc && dto.ruc.trim() !== company.ruc) {
+      const existing = await this.companyRepository.findOne({
+        where: { ruc: dto.ruc.trim() },
+      });
+      if (existing) {
+        throw new ConflictException(`El RUC '${dto.ruc}' ya está en uso`);
+      }
+      company.ruc = dto.ruc.trim();
+    }
+
+    if (dto.name !== undefined) company.name = dto.name.trim();
+    if (dto.address !== undefined) company.address = dto.address.trim();
+    if (dto.phone !== undefined) company.phone = dto.phone.trim();
+    if (dto.is_employer !== undefined) company.is_employer = dto.is_employer;
+    if (dto.is_merchant !== undefined) company.is_merchant = dto.is_merchant;
+    if (dto.status !== undefined) company.status = dto.status;
+
+    return this.companyRepository.save(company);
+  }
+
+  async toggleStatus(id: string): Promise<Company> {
+    const company = await this.findOne(id);
+    company.status =
+      company.status === CompanyStatus.ACTIVE
+        ? CompanyStatus.INACTIVE
+        : CompanyStatus.ACTIVE;
+    return this.companyRepository.save(company);
   }
 }

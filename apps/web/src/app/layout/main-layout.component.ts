@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule, Router } from '@angular/router';
+import { RouterModule } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { UserRole } from '../core/models';
 
@@ -27,6 +27,9 @@ import { UserRole } from '../core/models';
             </a>
             <a routerLink="/clients" routerLinkActive="active" class="nav-item" *ngIf="canManageCredit()">
               <i class="users icon"></i> Clientes
+            </a>
+            <a routerLink="/admin" routerLinkActive="active" class="nav-item" *ngIf="isAdmin()">
+              <i class="cogs icon"></i> Panel Admin
             </a>
             <a routerLink="/import-export" routerLinkActive="active" class="nav-item" *ngIf="canManageCredit()">
               <i class="file excel outline icon"></i> Importación Masiva
@@ -234,5 +237,8 @@ export class MainLayoutComponent {
   canManageCredit(): boolean {
     return this.auth.hasRole(UserRole.CREDIT_MANAGER, UserRole.SUPER_ADMIN, UserRole.AUDITOR);
   }
-}
 
+  isAdmin(): boolean {
+    return this.auth.hasRole(UserRole.SUPER_ADMIN, UserRole.CREDIT_MANAGER);
+  }
+}
