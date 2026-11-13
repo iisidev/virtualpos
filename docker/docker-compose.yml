@@ -45,25 +45,25 @@ services:
       - corpcredit-net
 
   # ----------------------------------------------------
-  # 3. WHATSAPP GATEWAY: OpenClaw Local Gateway
+  # 3. WHATSAPP GATEWAY: Official OpenClaw (Baileys/Meta)
   # ----------------------------------------------------
   openclaw:
-    build:
-      context: ../apps/openclaw
-      dockerfile: Dockerfile
+    image: ghcr.io/openclaw/openclaw:latest
     container_name: corpcredit-openclaw
     restart: always
-    ports:
-      - "${OPENCLAW_PORT:-22088}:8080"
     environment:
-      PORT: 8080
-      WEBHOOK_URL: http://api:3000/api/v1/whatsapp/webhook
-      API_KEY: ${OPENCLAW_API_KEY:-claw_sec_token_999}
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8080/health || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      HOME: /home/node
+      OPENCLAW_HOME: /home/node
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
+      OPENCLAW_CONFIG_DIR: /home/node/.openclaw
+      OPENCLAW_WORKSPACE_DIR: /home/node/.openclaw/workspace
+      OPENCLAW_GATEWAY_PORT: "18789"
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-pos_virtual_claw_token_2026}
+    ports:
+      - "${OPENCLAW_PORT:-22088}:18789"
+    volumes:
+      - openclaw_data:/home/node/.openclaw
     networks:
       - corpcredit-net
 
@@ -82,7 +82,7 @@ services:
       redis:
         condition: service_healthy
       openclaw:
-        condition: service_healthy
+        condition: service_started
     ports:
       - "${API_PORT:-22300}:3000"
     environment:
@@ -105,8 +105,8 @@ services:
       WHATSAPP_PROVIDER: openclaw
       WHATSAPP_BOT_NUMBER: ${WHATSAPP_BOT_NUMBER:-50588888888}
       WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-pos_virtual_verify_token_secure}
-      OPENCLAW_GATEWAY_URL: http://openclaw:8080/v1/messages
-      OPENCLAW_API_KEY: ${OPENCLAW_API_KEY:-claw_sec_token_999}
+      OPENCLAW_GATEWAY_URL: http://openclaw:18789
+      OPENCLAW_API_KEY: ${OPENCLAW_GATEWAY_TOKEN:-pos_virtual_claw_token_2026}
     networks:
       - corpcredit-net
 
@@ -130,6 +130,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  openclaw_data:
     driver: local
 
 networks:

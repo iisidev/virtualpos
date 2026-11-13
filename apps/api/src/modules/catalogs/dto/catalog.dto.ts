@@ -40,3 +40,4 @@ export class UpdateCatalogItemDto {
   @IsOptional()
   order_index?: number;
 }
+

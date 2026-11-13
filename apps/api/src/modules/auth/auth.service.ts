@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, OnModuleInit } from '@nestjs/common';
+import { Injectable, UnauthorizedException, OnModuleInit, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,6 +11,8 @@ import { LoginDto, AuthResponseDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -26,17 +28,21 @@ export class AuthService implements OnModuleInit {
   }
 
   async validateUser(loginDto: LoginDto): Promise<AuthResponseDto> {
-    const user = await this.userRepository.findOne({
-      where: { username: loginDto.username.trim(), is_active: true },
-    });
+    const cleanUsername = loginDto.username.trim().toLowerCase();
+
+    const user = await this.userRepository
+      .createQueryBuilder('u')
+      .where('LOWER(u.username) = :uname', { uname: cleanUsername })
+      .andWhere('u.is_active = :active', { active: true })
+      .getOne();
 
     if (!user) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw new UnauthorizedException(`Usuario '${loginDto.username}' no encontrado o se encuentra inactivo`);
     }
 
     const isMatch = await bcrypt.compare(loginDto.password, user.password_hash);
     if (!isMatch) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw new UnauthorizedException('Contraseña incorrecta');
     }
 
     const payload = {
@@ -61,92 +67,130 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Automatically seeds initial demo companies, cash registers, and users
-   * to ensure zero-setup readiness.
+   * Automatically guarantees that demo companies, cash registers, and essential users
+   * exist and have known passwords ready for login.
    */
   private async seedInitialData(): Promise<void> {
-    const count = await this.userRepository.count();
-    if (count > 0) return;
-
-    // 1. Seed demo companies
-    const employerCompany = this.companyRepository.create({
-      code: 'EMP-CORP-01',
-      name: 'Grupo Corporativo Industrial S.A.',
-      ruc: 'J0310000001011',
-      address: 'Km 6.5 Carretera Norte, Managua',
-      phone: '+505 2244-1000',
-      is_employer: true,
-      is_merchant: false,
-      status: CompanyStatus.ACTIVE,
-      created_by: 'SYSTEM_SEED',
-    });
-    const savedEmployer = await this.companyRepository.save(employerCompany);
-
-    const merchantCompany = this.companyRepository.create({
-      code: 'MER-SUPER-01',
-      name: 'Supermercados & Tiendas Corporativas S.A.',
-      ruc: 'J0310000002022',
-      address: 'Plaza Inter, Managua',
-      phone: '+505 2255-2000',
-      is_employer: false,
-      is_merchant: true,
-      status: CompanyStatus.ACTIVE,
-      created_by: 'SYSTEM_SEED',
-    });
-    const savedMerchant = await this.companyRepository.save(merchantCompany);
-
-    // 2. Seed Cash Register
-    const cashRegister = this.cashRegisterRepository.create({
-      company_id: savedMerchant.id,
-      terminal_code: 'POS-CAJA-01',
-      name: 'Terminal Caja Principal 01',
-      location: 'Caja Rápida 1',
-      status: CashRegisterStatus.OPEN,
-      created_by: 'SYSTEM_SEED',
-    });
-    await this.cashRegisterRepository.save(cashRegister);
-
-    // 3. Seed Users
-    const saltRounds = 10;
-    const defaultUsers = [
-      {
-        username: 'admin',
-        password_hash: await bcrypt.hash('admin123', saltRounds),
-        full_name: 'Administrador Maestro del Sistema',
-        role: UserRole.SUPER_ADMIN,
-        company_id: null,
-      },
-      {
-        username: 'manager',
-        password_hash: await bcrypt.hash('manager123', saltRounds),
-        full_name: 'Gerente de Créditos y Cobranzas',
-        role: UserRole.CREDIT_MANAGER,
-        company_id: savedEmployer.id,
-      },
-      {
-        username: 'caja1',
-        password_hash: await bcrypt.hash('caja123', saltRounds),
-        full_name: 'Cajero Principal Tienda',
-        role: UserRole.CASHIER,
-        company_id: savedMerchant.id,
-      },
-      {
-        username: 'auditor',
-        password_hash: await bcrypt.hash('auditor123', saltRounds),
-        full_name: 'Auditor Financiero Externo',
-        role: UserRole.AUDITOR,
-        company_id: null,
-      },
-    ];
-
-    for (const u of defaultUsers) {
-      const userEntity = this.userRepository.create({
-        ...u,
-        is_active: true,
-        created_by: 'SYSTEM_SEED',
+    try {
+      // 1. Seed or retrieve employer company
+      let savedEmployer = await this.companyRepository.findOne({
+        where: { code: 'EMP-CORP-01' },
       });
-      await this.userRepository.save(userEntity);
+      if (!savedEmployer) {
+        const employerCompany = this.companyRepository.create({
+          code: 'EMP-CORP-01',
+          name: 'Grupo Corporativo Industrial S.A.',
+          ruc: 'J0310000001011',
+          address: 'Km 6.5 Carretera Norte, Managua',
+          phone: '+505 2244-1000',
+          is_employer: true,
+          is_merchant: false,
+          status: CompanyStatus.ACTIVE,
+          created_by: 'SYSTEM_SEED',
+        });
+        savedEmployer = await this.companyRepository.save(employerCompany);
+      }
+
+      // 2. Seed or retrieve merchant company
+      let savedMerchant = await this.companyRepository.findOne({
+        where: { code: 'MER-SUPER-01' },
+      });
+      if (!savedMerchant) {
+        const merchantCompany = this.companyRepository.create({
+          code: 'MER-SUPER-01',
+          name: 'Supermercados & Tiendas Corporativas S.A.',
+          ruc: 'J0310000002022',
+          address: 'Plaza Inter, Managua',
+          phone: '+505 2255-2000',
+          is_employer: false,
+          is_merchant: true,
+          status: CompanyStatus.ACTIVE,
+          created_by: 'SYSTEM_SEED',
+        });
+        savedMerchant = await this.companyRepository.save(merchantCompany);
+      }
+
+      // 3. Seed Cash Register
+      let cashRegister = await this.cashRegisterRepository.findOne({
+        where: { terminal_code: 'POS-CAJA-01' },
+      });
+      if (!cashRegister) {
+        cashRegister = this.cashRegisterRepository.create({
+          company_id: savedMerchant.id,
+          terminal_code: 'POS-CAJA-01',
+          name: 'Terminal Caja Principal 01',
+          location: 'Caja Rápida 1',
+          status: CashRegisterStatus.OPEN,
+          created_by: 'SYSTEM_SEED',
+        });
+        await this.cashRegisterRepository.save(cashRegister);
+      }
+
+      // 4. Seed / Synchronize System Users
+      const saltRounds = 10;
+      const defaultUsers = [
+        {
+          username: 'admin',
+          password: 'admin123',
+          full_name: 'Administrador Maestro del Sistema',
+          role: UserRole.SUPER_ADMIN,
+          company_id: null,
+        },
+        {
+          username: 'manager',
+          password: 'manager123',
+          full_name: 'Gerente de Créditos y Cobranzas',
+          role: UserRole.CREDIT_MANAGER,
+          company_id: savedEmployer.id,
+        },
+        {
+          username: 'caja1',
+          password: 'caja123',
+          full_name: 'Cajero Principal Tienda',
+          role: UserRole.CASHIER,
+          company_id: savedMerchant.id,
+        },
+        {
+          username: 'auditor',
+          password: 'auditor123',
+          full_name: 'Auditor Financiero Externo',
+          role: UserRole.AUDITOR,
+          company_id: null,
+        },
+      ];
+
+      for (const u of defaultUsers) {
+        const existing = await this.userRepository.findOne({
+          where: { username: u.username },
+        });
+
+        const newHash = await bcrypt.hash(u.password, saltRounds);
+
+        if (!existing) {
+          const userEntity = this.userRepository.create({
+            username: u.username,
+            password_hash: newHash,
+            full_name: u.full_name,
+            role: u.role,
+            company_id: u.company_id,
+            is_active: true,
+            created_by: 'SYSTEM_SEED',
+          });
+          await this.userRepository.save(userEntity);
+          this.logger.log(`Usuario semilla '${u.username}' creado con éxito.`);
+        } else {
+          // Guarantee known password hash and active state for demo accounts
+          existing.password_hash = newHash;
+          existing.is_active = true;
+          existing.role = u.role;
+          await this.userRepository.save(existing);
+        }
+      }
+
+      this.logger.log('✅ Usuarios del sistema verificados y listos para login: admin, manager, caja1, auditor');
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Error en seed de datos iniciales: ${errorMsg}`);
     }
   }
 }
-
