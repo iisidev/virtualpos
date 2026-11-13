@@ -1,4 +1,4 @@
-# 💳 CORP-CREDIT POS
+# 💳 VIRTUAL POS 
 ### Plataforma Multi-Empresa de Gestión de Créditos Corporativos & Terminal POS Virtual
 
 [![NestJS](https://img.shields.io/badge/Backend-NestJS%2011-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
