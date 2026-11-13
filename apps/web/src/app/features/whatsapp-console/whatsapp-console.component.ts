@@ -78,6 +78,17 @@ interface SimulatedInteraction {
             <div class="feature-item"><i class="check circle icon"></i> Clasificación Determinística Instantánea</div>
             <div class="feature-item"><i class="check circle icon"></i> Cero Dependencias de Mocks o IA Externa</div>
           </div>
+
+          <div style="margin-top: 1.25rem;">
+            <a
+              [href]="openClawDashboardUrl"
+              target="_blank"
+              class="ui fluid primary button"
+              style="background: var(--navy-900); color: white; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; padding: 0.75rem; border-radius: 0.5rem; font-weight: 700;"
+            >
+              <i class="external alternate icon"></i> Abrir Interfaz Web de OpenClaw (:22088)
+            </a>
+          </div>
         </div>
 
         <!-- QR CORPORATIVO DE ENLACE (4 COLS) -->
@@ -400,6 +411,11 @@ export class WhatsappConsoleComponent implements OnInit {
   simMessage = '2';
   loading = false;
   interactions: SimulatedInteraction[] = [];
+
+  get openClawDashboardUrl(): string {
+    const host = window.location.hostname || 'localhost';
+    return `http://${host}:22088`;
+  }
 
   ngOnInit(): void {
     setTimeout(() => this.renderEntryQR(), 100);
