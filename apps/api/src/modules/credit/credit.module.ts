@@ -1,0 +1,31 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import {
+  CreditTransaction,
+  ClientCreditProfile,
+  Company,
+  CashRegister,
+  AuditLog,
+  User,
+} from '../../database/entities';
+import { CreditLedgerService } from './credit-ledger.service';
+import { CreditController } from './credit.controller';
+import { RedisLockService } from './redis-lock.service';
+import { CryptoService } from '../../common/crypto/crypto.service';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      CreditTransaction,
+      ClientCreditProfile,
+      Company,
+      CashRegister,
+      AuditLog,
+      User,
+    ]),
+  ],
+  controllers: [CreditController],
+  providers: [CreditLedgerService, RedisLockService, CryptoService],
+  exports: [CreditLedgerService, RedisLockService, CryptoService],
+})
+export class CreditModule {}
