@@ -39,8 +39,8 @@ export class CreditTransaction {
   merchant_company_id!: string;
 
   @Index()
-  @Column({ type: 'uuid' })
-  cash_register_id!: string;
+  @Column({ type: 'uuid', nullable: true })
+  cash_register_id?: string | null;
 
   @Index()
   @Column({ type: 'uuid' })
@@ -99,9 +99,12 @@ export class CreditTransaction {
   @JoinColumn({ name: 'merchant_company_id' })
   merchant_company?: Company;
 
-  @ManyToOne(() => CashRegister, (cr) => cr.transactions, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => CashRegister, (cr) => cr.transactions, {
+    onDelete: 'RESTRICT',
+    nullable: true,
+  })
   @JoinColumn({ name: 'cash_register_id' })
-  cash_register?: CashRegister;
+  cash_register?: CashRegister | null;
 
   @ManyToOne(() => User, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'cashier_user_id' })

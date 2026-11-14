@@ -41,7 +41,10 @@ export class CreditController {
     @Req() req: Request,
   ): Promise<VoucherDetails> {
     const ip = req.ip || req.socket.remoteAddress;
-    return this.creditLedgerService.executeCharge(dto, user.userId, ip);
+    return this.creditLedgerService.executeCharge(dto, user.userId, ip, {
+      role: user.role,
+      companyId: user.companyId,
+    });
   }
 
   @Post('payment')
@@ -66,7 +69,10 @@ export class CreditController {
     @Req() req: Request,
   ) {
     const ip = req.ip || req.socket.remoteAddress;
-    return this.creditLedgerService.executeVoid(id, dto, user.userId, ip);
+    return this.creditLedgerService.executeVoid(id, dto, user.userId, ip, {
+      role: user.role,
+      companyId: user.companyId,
+    });
   }
 
   @Post('adjust-limit')
@@ -84,10 +90,12 @@ export class CreditController {
   @Get('transactions')
   @Roles(UserRole.CASHIER, UserRole.CREDIT_MANAGER, UserRole.AUDITOR, UserRole.SUPER_ADMIN)
   async getTransactions(
+    @CurrentUser() user: AuthenticatedUser,
     @Query('clientId') clientId?: string,
     @Query('cashRegisterId') cashRegisterId?: string,
+    @Query('merchantCompanyId') merchantCompanyId?: string,
     @Query('limit') limit = 50,
-  ) {
+  ): Promise<VoucherDetails[]> {
     const qb = this.transactionRepository
       .createQueryBuilder('tx')
       .leftJoinAndSelect('tx.client', 'client')
@@ -96,7 +104,18 @@ export class CreditController {
       .leftJoinAndSelect('tx.cash_register', 'register')
       .leftJoinAndSelect('tx.cashier_user', 'cashier')
       .orderBy('tx.created_at', 'DESC')
-      .take(Math.min(100, Number(limit)));
+      .take(Math.min(100, Number(limit) || 50));
+
+    if (user.role === UserRole.CASHIER && user.companyId) {
+      qb.andWhere('tx.merchant_company_id = :scopedMerchantId', {
+        scopedMerchantId: user.companyId,
+      });
+    } else if (user.role !== UserRole.SUPER_ADMIN && user.companyId) {
+      qb.andWhere(
+        '(tx.merchant_company_id = :userComp OR client.employer_company_id = :userComp)',
+        { userComp: user.companyId },
+      );
+    }
 
     if (clientId) {
       qb.andWhere('tx.client_id = :clientId', { clientId });
@@ -104,8 +123,12 @@ export class CreditController {
     if (cashRegisterId) {
       qb.andWhere('tx.cash_register_id = :cashRegisterId', { cashRegisterId });
     }
+    if (merchantCompanyId) {
+      qb.andWhere('tx.merchant_company_id = :merchantCompanyId', { merchantCompanyId });
+    }
 
-    return qb.getMany();
+    const rows = await qb.getMany();
+    return rows.map((tx) => this.creditLedgerService.mapToVoucherDetails(tx));
   }
 
   @Get('transactions/:id/voucher')

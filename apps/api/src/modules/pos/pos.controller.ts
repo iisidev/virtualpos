@@ -83,7 +83,10 @@ export class PosController {
     @Req() req: Request,
   ): Promise<VoucherDetails> {
     const ip = req.ip || req.socket.remoteAddress;
-    return this.creditLedgerService.executeCharge(dto, user.userId, ip);
+    return this.creditLedgerService.executeCharge(dto, user.userId, ip, {
+      role: user.role,
+      companyId: user.companyId,
+    });
   }
 }
 

@@ -6,7 +6,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Company } from '../../database/entities/company.entity';
-import { CompanyStatus } from '../../common/enums';
+import { CashRegister } from '../../database/entities/cash-register.entity';
+import { CashRegisterStatus, CompanyStatus } from '../../common/enums';
 import { CreateCompanyDto, UpdateCompanyDto } from './dto/company.dto';
 
 @Injectable()
@@ -14,7 +15,18 @@ export class CompaniesService {
   constructor(
     @InjectRepository(Company)
     private readonly companyRepository: Repository<Company>,
+    @InjectRepository(CashRegister)
+    private readonly cashRegisterRepository: Repository<CashRegister>,
   ) {}
+
+  private async closeOpenRegistersIfDisallowed(company: Company): Promise<void> {
+    if (company.status !== CompanyStatus.ACTIVE || !company.is_merchant) {
+      await this.cashRegisterRepository.update(
+        { company_id: company.id, status: CashRegisterStatus.OPEN },
+        { status: CashRegisterStatus.CLOSED },
+      );
+    }
+  }
 
   async findAll(): Promise<Company[]> {
     return this.companyRepository.find({
@@ -107,7 +119,9 @@ export class CompaniesService {
     if (dto.is_merchant !== undefined) company.is_merchant = dto.is_merchant;
     if (dto.status !== undefined) company.status = dto.status;
 
-    return this.companyRepository.save(company);
+    const saved = await this.companyRepository.save(company);
+    await this.closeOpenRegistersIfDisallowed(saved);
+    return this.findOne(saved.id);
   }
 
   async toggleStatus(id: string): Promise<Company> {
@@ -116,6 +130,8 @@ export class CompaniesService {
       company.status === CompanyStatus.ACTIVE
         ? CompanyStatus.INACTIVE
         : CompanyStatus.ACTIVE;
-    return this.companyRepository.save(company);
+    const saved = await this.companyRepository.save(company);
+    await this.closeOpenRegistersIfDisallowed(saved);
+    return this.findOne(saved.id);
   }
 }

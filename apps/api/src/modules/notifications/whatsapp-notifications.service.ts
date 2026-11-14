@@ -9,10 +9,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
-import { AuditLog, ClientCreditProfile, CreditTransaction } from '../../database/entities';
+import {
+  AuditLog,
+  ClientCreditProfile,
+  CreditIncreaseRequest,
+  CreditTransaction,
+} from '../../database/entities';
 import { CreditStatus } from '../../common/enums';
 import { toWhatsAppE164 } from '../../common/utils/phone.util';
-import { formatAmount } from '../../common/utils/whatsapp-format.util';
+import { formatAmount, formatCordoba } from '../../common/utils/whatsapp-format.util';
 import { OpenClawProvider } from '../whatsapp/providers/openclaw.provider';
 
 export interface SendResult {
@@ -147,6 +152,130 @@ export class WhatsAppNotificationsService {
     } catch (err: unknown) {
       const error = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Error inesperado enviando WhatsApp de consumo (${phone}): ${error}`);
+      return { attempted: true, ok: false, phone, error };
+    }
+  }
+
+  /**
+   * Sends a non-blocking WhatsApp notification when a credit increase request
+   * is approved or rejected by the Credit Committee.
+   */
+  async notifyCreditRequestDecision(
+    request: CreditIncreaseRequest,
+    client: ClientCreditProfile,
+    approvedLimit: number,
+    reviewedByUserId: string | null,
+  ): Promise<ConsumptionNotificationResult> {
+    const rawPhone = client.whatsapp_phone?.trim() || '';
+    if (!rawPhone) {
+      return {
+        attempted: false,
+        ok: false,
+        phone: null,
+        error: 'Cliente sin número de WhatsApp registrado',
+      };
+    }
+
+    const phone = this.toE164(rawPhone);
+    if (!phone) {
+      return {
+        attempted: true,
+        ok: false,
+        phone: null,
+        error:
+          'Teléfono sin código de país (defina WHATSAPP_DEFAULT_COUNTRY_CODE o guarde el número completo)',
+      };
+    }
+
+    const code = `REQ-${request.id.substring(0, 8).toUpperCase()}`;
+    const isApproved = request.status === 'APPROVED';
+    const notesLine = request.review_notes?.trim()
+      ? `\n📝 *Observaciones:* ${request.review_notes.trim()}`
+      : '';
+
+    const message = isApproved
+      ? [
+          `✅ *Solicitud de Aumento Aprobada*`,
+          `📌 *Gestión:* ${code}`,
+          `👤 *Cliente:* ${client.first_name} ${client.last_name}`,
+          `🏦 *Nuevo límite aprobado:* *${formatCordoba(approvedLimit)}*`,
+          `🟢 *Disponible actual:* *${formatCordoba(client.available_balance)}*${notesLine}`,
+          '',
+          '_Ya puede utilizar su nuevo límite en nuestros comercios afiliados._',
+        ].join('\n')
+      : [
+          `❌ *Resolución de Solicitud de Crédito*`,
+          `📌 *Gestión:* ${code}`,
+          `👤 *Cliente:* ${client.first_name} ${client.last_name}`,
+          `Su solicitud por *${formatCordoba(request.requested_limit)}* no fue aprobada en esta ocasión.${notesLine}`,
+          `🛡️ *Límite vigente:* ${formatCordoba(client.approved_limit)}`,
+        ].join('\n');
+
+    try {
+      const result = await this.provider.sendText(phone, message);
+      await this.audit('WHATSAPP_CREDIT_REQUEST_DECISION_SENT', request.id, reviewedByUserId, {
+        client_id: client.id,
+        decision: request.status,
+        phone,
+        ok: result.ok,
+        error: result.error ?? null,
+      }).catch(() => undefined);
+      return { attempted: true, ok: result.ok, phone, error: result.error };
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Error enviando notificación de solicitud (${phone}): ${error}`);
+      return { attempted: true, ok: false, phone, error };
+    }
+  }
+
+  /**
+   * Sends a non-blocking WhatsApp notification when a pending credit line is activated.
+   */
+  async notifyCreditLineActivated(
+    client: ClientCreditProfile,
+    activatedByUserId: string | null,
+  ): Promise<ConsumptionNotificationResult> {
+    const rawPhone = client.whatsapp_phone?.trim() || '';
+    if (!rawPhone) {
+      return {
+        attempted: false,
+        ok: false,
+        phone: null,
+        error: 'Cliente sin número de WhatsApp registrado',
+      };
+    }
+
+    const phone = this.toE164(rawPhone);
+    if (!phone) {
+      return {
+        attempted: true,
+        ok: false,
+        phone: null,
+        error:
+          'Teléfono sin código de país (defina WHATSAPP_DEFAULT_COUNTRY_CODE o guarde el número completo)',
+      };
+    }
+
+    const employer = client.employer_company?.name || 'su empresa';
+    const message = [
+      `🎉 *¡Línea de Crédito Aprobada y Activa!*`,
+      `Estimado(a) *${client.first_name} ${client.last_name}*, su crédito corporativo de *${employer}* ha sido habilitado.`,
+      `🏦 *Límite aprobado:* *${formatCordoba(client.approved_limit)}*`,
+      `🟢 *Disponible actual:* *${formatCordoba(client.available_balance)}*`,
+      `🪪 *Carnet:* ${client.employee_code}`,
+    ].join('\n');
+
+    try {
+      const result = await this.provider.sendText(phone, message);
+      await this.audit('WHATSAPP_CREDIT_LINE_ACTIVATED_SENT', client.id, activatedByUserId, {
+        phone,
+        ok: result.ok,
+        error: result.error ?? null,
+      }).catch(() => undefined);
+      return { attempted: true, ok: result.ok, phone, error: result.error };
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Error enviando activación de crédito (${phone}): ${error}`);
       return { attempted: true, ok: false, phone, error };
     }
   }

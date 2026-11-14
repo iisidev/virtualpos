@@ -40,6 +40,7 @@ export class ClientsController {
       gradeLevel,
       classification,
       creditStatus,
+      scopedCompanyId: user.companyId,
     });
   }
 

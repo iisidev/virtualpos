@@ -21,11 +21,58 @@
   color: var(--text-primary);
 }
 
+.ribbon-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
 .ribbon-title {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   color: var(--text-primary);
+}
+
+.terminal-selectors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.terminal-select-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.terminal-select-field label {
+  font-size: var(--ui-small-size);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.terminal-select {
+  padding: 6px 10px;
+  font-size: 13px;
+  min-width: 190px;
+  max-width: 280px;
+}
+
+.pos-terminal-warning {
+  margin: 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sub-terminal-label {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .ribbon-title h1 {

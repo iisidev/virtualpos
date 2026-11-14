@@ -6,9 +6,13 @@ import { AuditLog } from '../../database/entities/audit-log.entity';
 import { ClientsService } from './clients.service';
 import { ClientsController } from './clients.controller';
 import { CryptoService } from '../../common/crypto/crypto.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ClientCreditProfile, Company, AuditLog])],
+  imports: [
+    TypeOrmModule.forFeature([ClientCreditProfile, Company, AuditLog]),
+    NotificationsModule,
+  ],
   controllers: [ClientsController],
   providers: [ClientsService, CryptoService],
   exports: [ClientsService],
