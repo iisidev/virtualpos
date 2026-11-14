@@ -25,11 +25,16 @@
   color: var(--text-secondary);
 }
 
+.card-title h2,
 .card-title h3 {
   margin: 0;
   font-weight: 700;
   font-size: 17px;
   color: var(--text-primary);
+}
+
+.sim-error-banner {
+  margin-bottom: 12px;
 }
 
 .card-title-centered {
@@ -57,19 +62,13 @@
   align-items: center;
   gap: 8px;
   color: var(--emerald-text);
-  font-size: var(--ui-control-size);
+  font-size: var(--ui-small-size);
   font-weight: 700;
   margin-bottom: 4px;
 }
 
-.pulse-dot {
-  width: 10px;
-  height: 10px;
-  background-color: var(--palette-charge);
-  border-radius: 50%;
-  display: inline-block;
-  box-shadow: 0 0 8px var(--palette-charge);
-  flex-shrink: 0;
+.status-indicator > i.icon {
+  margin: 0;
 }
 
 .meta-row {
@@ -110,7 +109,7 @@
 
 .feature-item i.icon {
   margin: 0;
-  color: var(--palette-charge);
+  color: var(--charge-surface);
 }
 
 .openclaw-actions {
@@ -190,10 +189,11 @@
 
 .opt-btn {
   background: var(--surface-balance);
-  border: 1px solid var(--balance-border);
+  border: 1px solid var(--input-border);
   color: var(--text-primary);
   border-radius: var(--radius-control);
-  padding: 5px 9px;
+  padding: 6px 10px;
+  min-height: 36px;
   font-family: var(--font-body);
   font-size: var(--ui-small-size);
   font-weight: 600;
@@ -275,4 +275,11 @@
   color: var(--text-muted);
   padding: 32px 20px;
   font-size: var(--ui-control-size);
+}
+
+@container workspace (max-width: 760px) {
+  .opt-btn {
+    min-height: 44px;
+    padding: 8px 12px;
+  }
 }

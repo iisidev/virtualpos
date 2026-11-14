@@ -35,11 +35,11 @@ interface SimulatedInteraction {
     <div class="whatsapp-console-page">
       <div class="page-header bento-card">
         <div>
-          <h2>
+          <h1>
             <i class="whatsapp icon wa-brand-icon" aria-hidden="true"></i>
-            Canal WhatsApp Costo Cero & OpenClaw Gateway
-          </h2>
-          <p>Supervisión en vivo del conector OpenClaw, enlace de cuentas por QR y simulador de flujo conversacional</p>
+            Canal WhatsApp Costo Cero &amp; OpenClaw Gateway
+          </h1>
+          <p>Configuración del conector OpenClaw, enlace de cuentas por QR y simulador de flujo conversacional</p>
         </div>
       </div>
 
@@ -48,14 +48,14 @@ interface SimulatedInteraction {
         <div class="bento-card ui-col-4">
           <div class="card-title">
             <i class="server icon" aria-hidden="true"></i>
-            <h3>Estado del Gateway OpenClaw</h3>
+            <h2>Conector OpenClaw Gateway</h2>
           </div>
-          <p class="card-desc">Conexión activa sin costo de API por mensaje:</p>
+          <p class="card-desc">Parámetros locales del servicio sin costo de API por mensaje:</p>
 
           <div class="status-box">
             <div class="status-indicator">
-              <span class="pulse-dot" aria-hidden="true"></span>
-              <strong>SERVICIO ACTIVO (ONLINE)</strong>
+              <i class="plug icon" aria-hidden="true"></i>
+              <strong>CONFIGURACIÓN OPENCLAW (DOCKER)</strong>
             </div>
             <div class="meta-row">
               <span>Gateway Image:</span>
@@ -115,12 +115,16 @@ interface SimulatedInteraction {
         <div class="bento-card ui-col-4 qr-bento-card">
           <div class="card-title card-title-centered">
             <i class="qrcode icon" aria-hidden="true"></i>
-            <h3>QR Corporativo de Entrada</h3>
+            <h2>QR Corporativo de Entrada</h2>
           </div>
           <p class="card-desc">Escanee con WhatsApp para iniciar la ventana gratuita de 24 horas:</p>
 
           <div class="qr-canvas-box">
-            <canvas #waQRCanvas></canvas>
+            <canvas
+              #waQRCanvas
+              role="img"
+              aria-label="Código QR para iniciar conversación de WhatsApp Corporativo en POS VIRTUAL"
+            ></canvas>
           </div>
 
           <div class="qr-url-text">
@@ -133,17 +137,23 @@ interface SimulatedInteraction {
         </div>
 
         <!-- SIMULADOR INTERACTIVO EN VIVO (4 COLS) -->
-        <div class="bento-card ui-col-4">
+        <div class="bento-card ui-col-4 ui-col-tablet-full">
           <div class="card-title">
             <i class="terminal icon" aria-hidden="true"></i>
-            <h3>Simulador de Interacción</h3>
+            <h2>Simulador de Interacción</h2>
           </div>
           <p class="card-desc">Pruebe las respuestas del canal en tiempo real:</p>
 
+          <div *ngIf="simError" class="ui-banner error sim-error-banner" role="alert">
+            <span class="ui-banner-msg">
+              <i class="exclamation circle icon" aria-hidden="true"></i> {{ simError }}
+            </span>
+          </div>
+
           <div class="sim-form">
             <div class="field-group">
-              <label>Teléfono del Empleado:</label>
-              <select class="ui dropdown select-box" [(ngModel)]="simPhone">
+              <label for="wa-sim-phone">Teléfono del Empleado:</label>
+              <select id="wa-sim-phone" class="ui dropdown select-box" [(ngModel)]="simPhone">
                 <option value="50588881234">50588881234 (Juan Pérez - Activo)</option>
                 <option value="50588882345">50588882345 (María González - Ámbar)</option>
                 <option value="50588884567">50588884567 (Sandra López - Bloqueado)</option>
@@ -152,16 +162,17 @@ interface SimulatedInteraction {
             </div>
 
             <div class="field-group">
-              <label>Mensaje del Cliente:</label>
-              <div class="quick-options-row">
-                <button type="button" class="opt-btn" (click)="setMsg('1')">1️⃣ Aprobado</button>
-                <button type="button" class="opt-btn" (click)="setMsg('2')">2️⃣ Disponible</button>
-                <button type="button" class="opt-btn" (click)="setMsg('3')">3️⃣ Factura</button>
-                <button type="button" class="opt-btn" (click)="setMsg('4')">4️⃣ Historial</button>
-                <button type="button" class="opt-btn" (click)="setMsg('5')">5️⃣ Aumento</button>
+              <label for="wa-sim-message">Mensaje del Cliente:</label>
+              <div class="quick-options-row" role="group" aria-label="Opciones rápidas de prueba">
+                <button type="button" class="opt-btn" (click)="setMsg('1')">1. Aprobado</button>
+                <button type="button" class="opt-btn" (click)="setMsg('2')">2. Disponible</button>
+                <button type="button" class="opt-btn" (click)="setMsg('3')">3. Factura</button>
+                <button type="button" class="opt-btn" (click)="setMsg('4')">4. Historial</button>
+                <button type="button" class="opt-btn" (click)="setMsg('5')">5. Aumento</button>
               </div>
 
               <input
+                id="wa-sim-message"
                 type="text"
                 class="ui-input sim-input"
                 [(ngModel)]="simMessage"
@@ -176,7 +187,8 @@ interface SimulatedInteraction {
               [disabled]="loading"
               (click)="sendSimulatedMessage()"
             >
-              <i class="paper plane icon" aria-hidden="true"></i> Enviar Mensaje a Webhook
+              <i [ngClass]="loading ? 'spinner loading icon' : 'paper plane icon'" aria-hidden="true"></i>
+              {{ loading ? 'Enviando al Webhook...' : 'Enviar Mensaje a Webhook' }}
             </button>
           </div>
         </div>
@@ -185,7 +197,7 @@ interface SimulatedInteraction {
         <div class="bento-card ui-col-12">
           <div class="card-title">
             <i class="comments icon" aria-hidden="true"></i>
-            <h3>Bitácora de Conversaciones y Respuestas Inmediatas</h3>
+            <h2>Bitácora de Conversaciones y Respuestas Inmediatas</h2>
           </div>
 
           <div class="interactions-feed" *ngIf="interactions.length > 0">
@@ -224,6 +236,7 @@ export class WhatsappConsoleComponent implements OnInit {
   simPhone = '50588881234';
   simMessage = '2';
   loading = false;
+  simError = '';
   interactions: SimulatedInteraction[] = [];
 
   get openClawDashboardUrl(): string {
@@ -256,6 +269,7 @@ export class WhatsappConsoleComponent implements OnInit {
   sendSimulatedMessage(): void {
     if (!this.simMessage.trim()) return;
     this.loading = true;
+    this.simError = '';
 
     const payload = {
       from: this.simPhone,
@@ -276,7 +290,7 @@ export class WhatsappConsoleComponent implements OnInit {
       },
       error: (err) => {
         this.loading = false;
-        alert(err.error?.message || 'Error al comunicarse con webhook');
+        this.simError = err.error?.message || 'Error al comunicarse con webhook';
       },
     });
   }
