@@ -79,7 +79,7 @@ body.ui-retail {
 }
 
 .ui-retail :focus-visible {
-  outline: 3px solid var(--action-surface);
+  outline: 3px solid var(--navy-950);
   outline-offset: 2px;
 }
 
@@ -96,7 +96,7 @@ body.ui-retail {
 }
 
 .ui-retail ::selection {
-  background: #ffedd5;
+  background: var(--selection-bg);
   color: var(--text-primary);
 }
 

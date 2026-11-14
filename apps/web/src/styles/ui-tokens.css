@@ -63,8 +63,20 @@
   --warning-border: #fde68a;
   --red-main: #b91c1c;
   --red-subtle: #fef2f2;
+  --danger-hover: #991b1b;
+  --on-danger: #ffffff;
   --danger-border: #fecaca;
   --red-border: var(--danger-border);
+
+  /* Estados de foco, selección, velos y elevación. */
+  --focus-ring-tint: rgb(194 65 12 / 14%);
+  --selection-bg: var(--accent-subtle);
+  --scrim-backdrop: rgb(24 24 27 / 42%);
+  --scrim-drawer: rgb(24 24 27 / 35%);
+  --scrim-surface-hover: rgb(255 255 255 / 70%);
+  --on-charge-muted-border: rgb(255 255 255 / 40%);
+  --shadow-control: 0 1px 3px rgb(24 24 27 / 10%);
+  --shadow-modal: 0 20px 50px rgb(24 24 27 / 22%);
 
   /* Compatibilidad con los nombres ya usados en el original. */
   --navy-950: #09090b;

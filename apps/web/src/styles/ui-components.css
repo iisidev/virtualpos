@@ -24,17 +24,9 @@
   box-shadow: var(--shadow-bento-hover);
 }
 
-.ui-retail .bento-card.emerald {
-  border-left: 3px solid var(--charge-surface);
-}
-
-.ui-retail .bento-card.amber {
-  border-left: 3px solid var(--amber-main);
-  background: var(--white-card);
-}
-
+.ui-retail .bento-card.emerald,
+.ui-retail .bento-card.amber,
 .ui-retail .bento-card.red {
-  border-left: 3px solid var(--red-main);
   background: var(--white-card);
 }
 
@@ -114,7 +106,7 @@
 .ui-retail .page-header h1 > i.icon,
 .ui-retail .page-header h2 > i.icon {
   margin: 0;
-  color: var(--action-surface);
+  color: var(--text-secondary);
 }
 
 .ui-retail .page-header p {
@@ -177,14 +169,14 @@
 
 .ui-retail .ui.negative.button {
   background: var(--red-main);
-  color: #ffffff;
+  color: var(--on-danger);
   border: 1px solid var(--red-main);
 }
 
 .ui-retail .ui.negative.button:hover:not(:disabled) {
-  background: #991b1b;
-  border-color: #991b1b;
-  color: #ffffff;
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
+  color: var(--on-danger);
 }
 
 .ui-retail .ui.teal.button {
@@ -277,7 +269,7 @@
 .ui-retail .ui.input > input:focus:not(:focus-visible) {
   outline: 2px solid transparent;
   border-color: var(--action-surface);
-  box-shadow: 0 0 0 3px rgb(194 65 12 / 14%);
+  box-shadow: 0 0 0 3px var(--focus-ring-tint);
 }
 
 .ui-retail .ui-input:focus-visible,
@@ -462,7 +454,7 @@
 .ui-retail .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(24 24 27 / 42%);
+  background: var(--scrim-backdrop);
   backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
@@ -476,7 +468,7 @@
   max-width: 640px;
   background: var(--white-card);
   border-radius: var(--radius-bento);
-  box-shadow: 0 20px 50px rgb(24 24 27 / 22%);
+  box-shadow: var(--shadow-modal);
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
 }
