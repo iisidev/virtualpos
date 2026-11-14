@@ -1,0 +1,146 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.clients-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-gap);
+}
+
+.filter-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  padding: 18px 20px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.flex-1 {
+  flex: 1 1 180px;
+}
+
+.flex-2 {
+  flex: 2 1 260px;
+}
+
+.filter-group label {
+  font-size: var(--ui-small-size);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-input);
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-control);
+  padding: 8px 12px;
+  transition:
+    border-color 160ms,
+    box-shadow 160ms;
+}
+
+.search-input-wrap:focus-within {
+  border-color: var(--palette-action);
+  box-shadow: 0 0 0 3px rgb(234 88 12 / 12%);
+}
+
+.search-input-wrap i.icon {
+  margin: 0;
+  color: var(--icon-muted);
+  flex-shrink: 0;
+}
+
+.search-input-wrap input.ui-input {
+  border: none;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+  font-size: var(--ui-control-size);
+  box-shadow: none;
+}
+
+.search-input-wrap input.ui-input:focus {
+  border: none;
+  box-shadow: none;
+}
+
+.select-box {
+  width: 100%;
+  padding: 9px 12px;
+}
+
+.sub-text {
+  font-size: var(--ui-small-size);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.wa-inline-icon {
+  color: var(--emerald-text);
+  margin: 0 !important;
+}
+
+.carnet-pill,
+.class-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--gray-subtle);
+  border: 1px solid var(--gray-border);
+  padding: 2px 7px;
+  border-radius: 5px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+}
+
+.salary-tag {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--ui-small-size);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.text-right {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.empty-state {
+  text-align: center !important;
+  padding: 36px 20px !important;
+  color: var(--text-muted);
+}
+
+.text-bold {
+  font-weight: 700;
+}
+
+.modal-content {
+  max-width: 680px;
+}
+
+.form-row .flex-1 {
+  flex: 1 1 220px;
+}
+
+@container workspace (max-width: 640px) {
+  .filter-group {
+    flex-basis: 100%;
+  }
+}

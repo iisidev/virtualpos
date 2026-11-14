@@ -37,7 +37,7 @@ import { getApiBaseUrl } from '../../core/config/api.config';
         <div class="filter-group flex-2">
           <label>Búsqueda Rápida:</label>
           <div class="search-input-wrap">
-            <i class="search icon"></i>
+            <i class="search icon" aria-hidden="true"></i>
             <input
               type="text"
               class="ui-input"
@@ -88,10 +88,10 @@ import { getApiBaseUrl } from '../../core/config/api.config';
                 <th>Cédula / Carnet</th>
                 <th>Empresa Empleadora</th>
                 <th>Cargo / Nivel</th>
-                <th>Salario</th>
-                <th>Límite Autorizado</th>
-                <th>Consumido</th>
-                <th>Disponible</th>
+                <th class="text-right">Salario</th>
+                <th class="text-right">Límite Autorizado</th>
+                <th class="text-right">Consumido</th>
+                <th class="text-right">Disponible</th>
                 <th>Estado</th>
                 <th class="text-right">Acciones</th>
               </tr>
@@ -100,24 +100,30 @@ import { getApiBaseUrl } from '../../core/config/api.config';
               <tr *ngFor="let c of clients">
                 <td>
                   <strong>{{ c.full_name }}</strong>
-                  <div class="sub-text"><i class="whatsapp icon" style="color: #10B981;"></i> {{ c.whatsapp_phone }}</div>
+                  <div class="sub-text ui-mono">
+                    <i class="whatsapp icon wa-inline-icon" aria-hidden="true"></i> {{ c.whatsapp_phone }}
+                  </div>
                 </td>
                 <td>
-                  <div>{{ c.national_id }}</div>
-                  <span class="carnet-pill">{{ c.employee_code }}</span>
+                  <div class="ui-mono">{{ c.national_id }}</div>
+                  <span class="carnet-pill ui-mono">{{ c.employee_code }}</span>
                 </td>
                 <td>{{ c.employer_name }}</td>
                 <td>
                   <div>{{ c.job_title }}</div>
                   <span class="class-pill">{{ c.classification }} ({{ c.grade_level }})</span>
                 </td>
-                <td>
+                <td class="ui-amount-cell">
                   <span class="salary-tag">{{ c.salary }}</span>
                 </td>
-                <td><strong>C$ {{ formatNumber(c.approved_limit) }}</strong></td>
-                <td>C$ {{ formatNumber(c.used_balance) }}</td>
-                <td>
-                  <strong [style.color]="c.status_color_class === 'red' ? '#991B1B' : (c.status_color_class === 'amber' ? '#B45309' : '#047857')">
+                <td class="ui-amount-cell"><strong>C$ {{ formatNumber(c.approved_limit) }}</strong></td>
+                <td class="ui-amount-cell">C$ {{ formatNumber(c.used_balance) }}</td>
+                <td class="ui-amount-cell">
+                  <strong
+                    [class.ui-credit-danger]="c.status_color_class === 'red'"
+                    [class.ui-credit-warning]="c.status_color_class === 'amber'"
+                    [class.ui-credit-ok]="c.status_color_class !== 'red' && c.status_color_class !== 'amber'"
+                  >
                     C$ {{ formatNumber(c.available_balance) }}
                   </strong>
                 </td>
@@ -134,24 +140,34 @@ import { getApiBaseUrl } from '../../core/config/api.config';
                   </span>
                 </td>
                 <td class="text-right">
-                  <button class="icon-btn" (click)="openClientModal(c)" title="Editar Perfil">
-                    <i class="edit outline icon"></i>
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    (click)="openClientModal(c)"
+                    title="Editar Perfil"
+                    [attr.aria-label]="'Editar perfil de ' + c.full_name"
+                  >
+                    <i class="edit outline icon" aria-hidden="true"></i>
                   </button>
                   <button
+                    type="button"
                     *ngIf="c.credit_status === 'ACTIVE'"
                     class="icon-btn danger"
                     (click)="toggleStatus(c, 'BLOCKED')"
                     title="Bloquear Línea de Crédito"
+                    [attr.aria-label]="'Bloquear línea de crédito de ' + c.full_name"
                   >
-                    <i class="lock icon"></i>
+                    <i class="lock icon" aria-hidden="true"></i>
                   </button>
                   <button
+                    type="button"
                     *ngIf="c.credit_status !== 'ACTIVE'"
                     class="icon-btn success"
                     (click)="toggleStatus(c, 'ACTIVE')"
                     title="Reactivar Línea de Crédito"
+                    [attr.aria-label]="'Reactivar línea de crédito de ' + c.full_name"
                   >
-                    <i class="unlock icon"></i>
+                    <i class="unlock icon" aria-hidden="true"></i>
                   </button>
                 </td>
               </tr>
@@ -335,302 +351,7 @@ import { getApiBaseUrl } from '../../core/config/api.config';
       </div>
     </div>
   `,
-  styles: [
-    `
-      .clients-page {
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-      }
-
-      .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-      }
-
-      .page-header h2 {
-        margin: 0;
-        font-weight: 800;
-        color: var(--navy-900);
-      }
-
-      .page-header p {
-        margin: 0.25rem 0 0;
-        color: var(--gray-text);
-        font-size: 0.9rem;
-      }
-
-      .filter-card {
-        display: flex;
-        gap: 1.25rem;
-        align-items: center;
-        flex-wrap: wrap;
-        padding: 1rem 1.5rem;
-      }
-
-      .filter-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-      }
-
-      .flex-1 {
-        flex: 1;
-      }
-
-      .flex-2 {
-        flex: 2;
-      }
-
-      .filter-group label {
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: var(--navy-800);
-      }
-
-      .search-input-wrap {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: var(--gray-subtle);
-        border: 1px solid var(--gray-border);
-        border-radius: 0.5rem;
-        padding: 0.45rem 0.75rem;
-      }
-
-      .search-input-wrap input {
-        border: none;
-        background: transparent;
-        outline: none;
-        width: 100%;
-        font-size: 0.85rem;
-      }
-
-      .select-box {
-        padding: 0.55rem 0.75rem;
-        border: 1px solid var(--gray-border);
-        border-radius: 0.5rem;
-        font-size: 0.85rem;
-        outline: none;
-        background: #ffffff;
-      }
-
-      .ui-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.85rem;
-      }
-
-      .ui-table th {
-        text-align: left;
-        padding: 0.75rem 1rem;
-        font-weight: 700;
-        color: var(--navy-800);
-        border-bottom: 2px solid var(--gray-border);
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-      }
-
-      .ui-table td {
-        padding: 0.85rem 1rem;
-        border-bottom: 1px solid var(--gray-border);
-        vertical-align: middle;
-      }
-
-      .sub-text {
-        font-size: 0.75rem;
-        color: var(--gray-text);
-        display: flex;
-        align-items: center;
-        gap: 0.3rem;
-        margin-top: 0.2rem;
-      }
-
-      .carnet-pill,
-      .class-pill {
-        display: inline-block;
-        font-size: 0.7rem;
-        font-weight: 700;
-        background: var(--gray-subtle);
-        padding: 0.15rem 0.4rem;
-        border-radius: 0.25rem;
-        color: var(--navy-800);
-      }
-
-      .salary-tag {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #334155;
-      }
-
-      .ui-btn {
-        padding: 0.6rem 1.25rem;
-        border-radius: 0.5rem;
-        font-weight: 700;
-        font-size: 0.85rem;
-        cursor: pointer;
-        border: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        transition: all 0.15s;
-      }
-
-      .primary-btn {
-        background: var(--navy-900);
-        color: #ffffff;
-      }
-
-      .primary-btn:hover {
-        background: var(--navy-800);
-      }
-
-      .secondary-btn {
-        background: var(--gray-subtle);
-        color: var(--navy-800);
-      }
-
-      .icon-btn {
-        background: transparent;
-        border: 1px solid var(--gray-border);
-        padding: 0.35rem 0.5rem;
-        border-radius: 0.375rem;
-        cursor: pointer;
-        margin-left: 0.35rem;
-        transition: all 0.15s;
-      }
-
-      .icon-btn:hover {
-        background: var(--gray-subtle);
-      }
-
-      .icon-btn.danger {
-        color: #991B1B;
-      }
-
-      .icon-btn.danger:hover {
-        background: #FEE2E2;
-      }
-
-      .icon-btn.success {
-        color: #065F46;
-      }
-
-      .icon-btn.success:hover {
-        background: #D1FAE5;
-      }
-
-      .text-right {
-        text-align: right;
-      }
-
-      .empty-state {
-        text-align: center;
-        padding: 2.5rem;
-        color: var(--gray-text);
-      }
-
-      .text-bold {
-        font-weight: 700;
-      }
-
-      /* Modal */
-      .modal-backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.6);
-        backdrop-filter: blur(4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        padding: 1.5rem;
-      }
-
-      .modal-content {
-        width: 100%;
-        max-width: 680px;
-        background: #ffffff;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-        max-height: 90vh;
-        overflow-y: auto;
-      }
-
-      .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--gray-border);
-        margin-bottom: 1.25rem;
-      }
-
-      .modal-header h3 {
-        margin: 0;
-        font-weight: 800;
-        color: var(--navy-900);
-      }
-
-      .close-btn {
-        background: transparent;
-        border: none;
-        font-size: 1.5rem;
-        cursor: pointer;
-        color: var(--gray-text);
-      }
-
-      .modal-form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-      }
-
-      .form-row {
-        display: flex;
-        gap: 1rem;
-      }
-
-      .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-      }
-
-      .form-group label {
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: var(--navy-800);
-      }
-
-      .form-input {
-        padding: 0.6rem 0.75rem;
-        border: 1px solid var(--gray-border);
-        border-radius: 0.45rem;
-        font-size: 0.85rem;
-        outline: none;
-        width: 100%;
-        box-sizing: border-box;
-      }
-
-      .form-input:focus {
-        border-color: var(--navy-900);
-      }
-
-      .modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.75rem;
-        margin-top: 1.25rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--gray-border);
-      }
-    `,
-  ],
+  styleUrl: './clients-list.component.css',
 })
 export class ClientsListComponent implements OnInit {
   private readonly http = inject(HttpClient);
