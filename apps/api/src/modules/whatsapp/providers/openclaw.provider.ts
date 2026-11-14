@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WhatsAppProviderInterface } from '../interfaces/whatsapp-provider.interface';
 import { VoucherDetails } from '../../credit/credit-ledger.service';
+import { formatAmount, formatWhatsAppDateTime } from '../../../common/utils/whatsapp-format.util';
 
 @Injectable()
 export class OpenClawProvider implements WhatsAppProviderInterface {
@@ -82,11 +83,11 @@ export class OpenClawProvider implements WhatsAppProviderInterface {
 🔢 *Autorización:* ${voucher.authorization_code}
 📄 *No. Voucher:* ${voucher.voucher_number}
 🧾 *Factura ERP:* ${voucher.external_invoice_number}
-📅 *Fecha:* ${new Date(voucher.created_at).toLocaleString('es-NI')}
+📅 *Fecha:* ${formatWhatsAppDateTime(voucher.created_at)}
 
-💵 *Monto de Compra:* ${voucher.currency} ${Number(voucher.amount).toLocaleString('es-NI', { minimumFractionDigits: 2 })}
-📊 *Disponible Anterior:* ${voucher.currency} ${Number(voucher.previous_available_balance).toLocaleString('es-NI', { minimumFractionDigits: 2 })}
-🟢 *NUEVO DISPONIBLE:* ${voucher.currency} ${Number(voucher.new_available_balance).toLocaleString('es-NI', { minimumFractionDigits: 2 })}
+💵 *Monto de Compra:* ${voucher.currency} ${formatAmount(voucher.amount)}
+📊 *Disponible Anterior:* ${voucher.currency} ${formatAmount(voucher.previous_available_balance)}
+🟢 *NUEVO DISPONIBLE:* ${voucher.currency} ${formatAmount(voucher.new_available_balance)}
 ━━━━━━━━━━━━━━━━━━━━━
 🔒 *Firma Digital:* ${voucher.signature_hash.substring(0, 16)}...
 _Conserve este mensaje como comprobante de deducción autorizada._`;

@@ -13,6 +13,15 @@ import {
 } from '../../common/utils/classification.util';
 import { extractPhoneDigits } from '../../common/utils/phone.util';
 import {
+  CREDIT_STATUS_LABELS,
+  INCREASE_REQUEST_STATUS_LABELS,
+  TRANSACTION_STATUS_LABELS,
+  TRANSACTION_TYPE_LABELS,
+  formatCordoba,
+  formatWhatsAppDateTime,
+  translateEnumLabel,
+} from '../../common/utils/whatsapp-format.util';
+import {
   ClientCreditProfile,
   CreditIncreaseRequest,
   CreditTransaction,
@@ -21,27 +30,37 @@ import {
 export interface AgentMovement {
   id: string;
   date: string;
+  date_formatted: string;
   type: string;
+  type_label: string;
   amount: number;
+  amount_formatted: string;
   voucher_number: string;
   authorization_code: string;
   external_invoice_number: string;
   merchant: string | null;
   status: string;
+  status_label: string;
   previous_available_balance: number;
+  previous_available_balance_formatted: string;
   new_available_balance: number;
+  new_available_balance_formatted: string;
 }
 
 export interface AgentCreditRequestItem {
   id: string;
   request_code: string;
   current_limit: number;
+  current_limit_formatted: string;
   requested_limit: number;
+  requested_limit_formatted: string;
   reason: string;
   channel: string;
   status: string;
+  status_label: string;
   review_notes: string | null;
   created_at: string;
+  created_at_formatted: string;
 }
 
 export interface AgentBalanceResult {
@@ -64,11 +83,15 @@ export interface AgentBalanceResult {
     whatsapp_phone: string;
     birth_date: string | null;
     credit_status: string;
+    credit_status_label: string;
     can_purchase: boolean;
     currency: string;
     approved_limit: number;
+    approved_limit_formatted: string;
     used_balance: number;
+    used_balance_formatted: string;
     available_balance: number;
+    available_balance_formatted: string;
     consumption_percentage: number;
     updated_at: string;
     last_movement: AgentMovement | null;
@@ -86,10 +109,14 @@ export interface AgentMovementsResult {
     classification: string;
     is_vip: boolean;
     credit_status: string;
+    credit_status_label: string;
     currency: string;
     approved_limit: number;
+    approved_limit_formatted: string;
     used_balance: number;
+    used_balance_formatted: string;
     available_balance: number;
+    available_balance_formatted: string;
   };
   movements: AgentMovement[];
 }
@@ -169,15 +196,21 @@ export class AgentService {
     return {
       id: tx.id,
       date: new Date(tx.created_at).toISOString(),
+      date_formatted: formatWhatsAppDateTime(tx.created_at),
       type: tx.transaction_type,
+      type_label: translateEnumLabel(tx.transaction_type, TRANSACTION_TYPE_LABELS),
       amount: Number(tx.amount),
+      amount_formatted: formatCordoba(tx.amount),
       voucher_number: tx.voucher_number,
       authorization_code: tx.authorization_code,
       external_invoice_number: tx.external_invoice_number,
       merchant: tx.merchant_company?.name ?? null,
       status: tx.status,
+      status_label: translateEnumLabel(tx.status, TRANSACTION_STATUS_LABELS),
       previous_available_balance: Number(tx.previous_available_balance),
+      previous_available_balance_formatted: formatCordoba(tx.previous_available_balance),
       new_available_balance: Number(tx.new_available_balance),
+      new_available_balance_formatted: formatCordoba(tx.new_available_balance),
     };
   }
 
@@ -186,12 +219,16 @@ export class AgentService {
       id: req.id,
       request_code: `REQ-${req.id.substring(0, 8).toUpperCase()}`,
       current_limit: Number(req.current_limit),
+      current_limit_formatted: formatCordoba(req.current_limit),
       requested_limit: Number(req.requested_limit),
+      requested_limit_formatted: formatCordoba(req.requested_limit),
       reason: req.reason,
       channel: req.channel,
       status: req.status,
+      status_label: translateEnumLabel(req.status, INCREASE_REQUEST_STATUS_LABELS),
       review_notes: req.review_notes ?? null,
       created_at: new Date(req.created_at).toISOString(),
+      created_at_formatted: formatWhatsAppDateTime(req.created_at),
     };
   }
 
@@ -239,11 +276,15 @@ export class AgentService {
         whatsapp_phone: client.whatsapp_phone,
         birth_date: client.birth_date ?? null,
         credit_status: client.credit_status,
+        credit_status_label: translateEnumLabel(client.credit_status, CREDIT_STATUS_LABELS),
         can_purchase: client.credit_status === CreditStatus.ACTIVE && available > 0,
         currency: 'C$',
         approved_limit: approved,
+        approved_limit_formatted: formatCordoba(approved),
         used_balance: used,
+        used_balance_formatted: formatCordoba(used),
         available_balance: available,
+        available_balance_formatted: formatCordoba(available),
         consumption_percentage: approved > 0 ? Number(((used / approved) * 100).toFixed(1)) : 0,
         updated_at: new Date(client.updated_at).toISOString(),
         last_movement: latestTx ? this.mapMovement(latestTx) : null,
@@ -283,10 +324,14 @@ export class AgentService {
         classification: client.classification,
         is_vip: isVip,
         credit_status: client.credit_status,
+        credit_status_label: translateEnumLabel(client.credit_status, CREDIT_STATUS_LABELS),
         currency: 'C$',
         approved_limit: Number(client.approved_limit),
+        approved_limit_formatted: formatCordoba(client.approved_limit),
         used_balance: Number(client.used_balance),
+        used_balance_formatted: formatCordoba(client.used_balance),
         available_balance: Number(client.available_balance),
+        available_balance_formatted: formatCordoba(client.available_balance),
       },
       movements: rows.map((tx) => this.mapMovement(tx)),
     };
@@ -367,7 +412,7 @@ export class AgentService {
         created: false,
         is_vip: isVip,
         agent_mode: agentMode,
-        message: `El nuevo límite solicitado (C$ ${numericLimit.toFixed(2)}) debe ser mayor a su límite aprobado actual (C$ ${currentLimit.toFixed(2)}).`,
+        message: `El nuevo límite solicitado (${formatCordoba(numericLimit)}) debe ser mayor a su límite aprobado actual (${formatCordoba(currentLimit)}).`,
       };
     }
 
@@ -385,7 +430,7 @@ export class AgentService {
         is_vip: isVip,
         agent_mode: agentMode,
         request_code: code,
-        message: `Ya tiene una solicitud pendiente (${code}) por C$ ${Number(existingPending.requested_limit).toFixed(2)} esperando evaluación del Comité de Crédito.`,
+        message: `Ya tiene una solicitud pendiente (${code}) por ${formatCordoba(existingPending.requested_limit)} esperando evaluación del Comité de Crédito.`,
         request: this.mapIncreaseRequest(existingPending),
       };
     }
@@ -411,7 +456,7 @@ export class AgentService {
       is_vip: isVip,
       agent_mode: agentMode,
       request_code: request.request_code,
-      message: `Solicitud ${request.request_code} registrada por C$ ${numericLimit.toFixed(2)} y enviada al Comité de Crédito.`,
+      message: `Solicitud ${request.request_code} registrada por ${formatCordoba(numericLimit)} y enviada al Comité de Crédito.`,
       request,
     };
   }
