@@ -108,16 +108,16 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
               </thead>
               <tbody>
                 <tr *ngFor="let c of filteredCompanies">
-                  <td><strong>{{ c.code }}</strong></td>
+                  <td><strong class="ui-mono">{{ c.code }}</strong></td>
                   <td>
                     <div class="main-name">{{ c.name }}</div>
                     <div class="sub-detail">{{ c.address || 'Sin dirección registrada' }}</div>
                   </td>
                   <td><code>{{ c.ruc }}</code></td>
-                  <td>{{ c.phone || 'N/A' }}</td>
+                  <td class="ui-mono">{{ c.phone || 'N/A' }}</td>
                   <td>
                     <span *ngIf="c.is_employer" class="badge badge-employer">Empleadora</span>
-                    <span *ngIf="c.is_merchant" class="badge badge-merchant" style="margin-left: 0.35rem;">Comercio</span>
+                    <span *ngIf="c.is_merchant" class="badge badge-merchant">Comercio</span>
                   </td>
                   <td>
                     <span class="badge badge-subtle">{{ c.cash_registers?.length || 0 }} caja(s)</span>
@@ -128,15 +128,27 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                     </span>
                   </td>
                   <td class="text-right">
-                    <button class="icon-btn" (click)="openCompanyModal(c)" title="Editar">
-                      <i class="edit outline icon"></i>
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      (click)="openCompanyModal(c)"
+                      title="Editar"
+                      [attr.aria-label]="'Editar empresa ' + c.name"
+                    >
+                      <i class="edit outline icon" aria-hidden="true"></i>
                     </button>
                     <button
+                      type="button"
                       class="icon-btn"
                       [title]="c.status === 'ACTIVE' ? 'Desactivar' : 'Activar'"
+                      [attr.aria-label]="(c.status === 'ACTIVE' ? 'Desactivar ' : 'Activar ') + c.name"
                       (click)="toggleCompanyStatus(c)"
                     >
-                      <i class="power off icon" [style.color]="c.status === 'ACTIVE' ? '#991B1B' : '#10B981'"></i>
+                      <i
+                        class="power off icon"
+                        [ngClass]="c.status === 'ACTIVE' ? 'ui-credit-danger' : 'ui-credit-ok'"
+                        aria-hidden="true"
+                      ></i>
                     </button>
                   </td>
                 </tr>
@@ -211,22 +223,34 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                     </span>
                   </td>
                   <td>{{ u.company_name || 'Acceso Global / Grupo' }}</td>
-                  <td>{{ u.created_at | date: 'dd/MM/yyyy' }}</td>
+                  <td class="ui-mono">{{ u.created_at | date: 'dd/MM/yyyy' }}</td>
                   <td>
                     <span class="badge-status" [class.active]="u.is_active" [class.blocked]="!u.is_active">
                       {{ u.is_active ? 'ACTIVO' : 'INACTIVO' }}
                     </span>
                   </td>
                   <td class="text-right">
-                    <button class="icon-btn" (click)="openUserModal(u)" title="Editar / Cambiar Clave">
-                      <i class="edit outline icon"></i>
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      (click)="openUserModal(u)"
+                      title="Editar / Cambiar Clave"
+                      [attr.aria-label]="'Editar usuario ' + u.full_name"
+                    >
+                      <i class="edit outline icon" aria-hidden="true"></i>
                     </button>
                     <button
+                      type="button"
                       class="icon-btn"
                       [title]="u.is_active ? 'Desactivar' : 'Activar'"
+                      [attr.aria-label]="(u.is_active ? 'Desactivar ' : 'Activar ') + u.full_name"
                       (click)="toggleUserStatus(u)"
                     >
-                      <i class="power off icon" [style.color]="u.is_active ? '#991B1B' : '#10B981'"></i>
+                      <i
+                        class="power off icon"
+                        [ngClass]="u.is_active ? 'ui-credit-danger' : 'ui-credit-ok'"
+                        aria-hidden="true"
+                      ></i>
                     </button>
                   </td>
                 </tr>
@@ -242,7 +266,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
       <!-- TAB 3: CATALOGOS MAESTROS -->
       <div *ngIf="activeTab === 'catalogs'" class="tab-content">
         <!-- Sub Category Filter Pills -->
-        <div class="bento-card action-bar" style="flex-wrap: wrap;">
+        <div class="bento-card action-bar">
           <div class="catalog-subtabs">
             <button
               class="subtab-btn"
@@ -311,15 +335,27 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                     </span>
                   </td>
                   <td class="text-right">
-                    <button class="icon-btn" (click)="openCatalogModal(cat)" title="Editar">
-                      <i class="edit outline icon"></i>
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      (click)="openCatalogModal(cat)"
+                      title="Editar"
+                      [attr.aria-label]="'Editar catálogo ' + cat.name"
+                    >
+                      <i class="edit outline icon" aria-hidden="true"></i>
                     </button>
                     <button
+                      type="button"
                       class="icon-btn"
                       [title]="cat.is_active ? 'Desactivar' : 'Activar'"
+                      [attr.aria-label]="(cat.is_active ? 'Desactivar ' : 'Activar ') + cat.name"
                       (click)="toggleCatalogStatus(cat)"
                     >
-                      <i class="power off icon" [style.color]="cat.is_active ? '#991B1B' : '#10B981'"></i>
+                      <i
+                        class="power off icon"
+                        [ngClass]="cat.is_active ? 'ui-credit-danger' : 'ui-credit-ok'"
+                        aria-hidden="true"
+                      ></i>
                     </button>
                   </td>
                 </tr>
@@ -574,7 +610,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
               ></textarea>
             </div>
 
-            <div class="form-group" style="width: 140px;">
+            <div class="form-group catalog-order-group">
               <label>Orden Visual</label>
               <input
                 type="number"
@@ -597,408 +633,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
       </div>
     </div>
   `,
-  styles: [
-    `
-      .admin-page {
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-      }
-
-      .admin-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-      }
-
-      .header-info h2 {
-        margin: 0;
-        font-weight: 800;
-        color: var(--navy-900);
-      }
-
-      .header-info p {
-        margin: 0.25rem 0 0;
-        color: var(--gray-text);
-        font-size: 0.9rem;
-      }
-
-      .tab-pills {
-        display: flex;
-        gap: 0.5rem;
-        background: var(--gray-subtle);
-        padding: 0.35rem;
-        border-radius: 0.75rem;
-      }
-
-      .tab-btn {
-        background: transparent;
-        border: none;
-        padding: 0.6rem 1.15rem;
-        border-radius: 0.5rem;
-        font-weight: 700;
-        font-size: 0.85rem;
-        color: var(--navy-800);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        transition: all 0.2s;
-      }
-
-      .tab-btn:hover {
-        background: rgba(255, 255, 255, 0.6);
-      }
-
-      .tab-btn.active {
-        background: #ffffff;
-        color: var(--navy-900);
-        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
-      }
-
-      .stats-grid {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        margin-bottom: 1.25rem;
-      }
-
-      .stat-item {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-      }
-
-      .stat-label {
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        color: var(--gray-text);
-        letter-spacing: 0.05em;
-      }
-
-      .stat-value {
-        font-size: 1.75rem;
-        font-weight: 800;
-        color: var(--navy-900);
-      }
-
-      .text-emerald {
-        color: var(--emerald-main) !important;
-      }
-
-      .text-amber {
-        color: var(--amber-main) !important;
-      }
-
-      .text-red {
-        color: var(--red-main) !important;
-      }
-
-      .text-blue {
-        color: #2563EB !important;
-      }
-
-      .action-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .search-box {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: var(--gray-subtle);
-        border: 1px solid var(--gray-border);
-        border-radius: 0.5rem;
-        padding: 0.4rem 0.85rem;
-        flex: 1;
-        max-width: 480px;
-      }
-
-      .search-box input {
-        border: none;
-        background: transparent;
-        outline: none;
-        width: 100%;
-        font-size: 0.85rem;
-      }
-
-      .ui-btn {
-        padding: 0.6rem 1.25rem;
-        border-radius: 0.5rem;
-        font-weight: 700;
-        font-size: 0.85rem;
-        cursor: pointer;
-        border: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        transition: all 0.15s;
-      }
-
-      .primary-btn {
-        background: var(--navy-900);
-        color: #ffffff;
-      }
-
-      .primary-btn:hover {
-        background: var(--navy-800);
-      }
-
-      .secondary-btn {
-        background: var(--gray-subtle);
-        color: var(--navy-800);
-      }
-
-      .catalog-subtabs {
-        display: flex;
-        gap: 0.35rem;
-      }
-
-      .subtab-btn {
-        border: 1px solid var(--gray-border);
-        background: #ffffff;
-        padding: 0.45rem 0.85rem;
-        border-radius: 0.4rem;
-        font-size: 0.8rem;
-        font-weight: 600;
-        cursor: pointer;
-      }
-
-      .subtab-btn.active {
-        background: var(--navy-900);
-        color: #ffffff;
-        border-color: var(--navy-900);
-      }
-
-      .ui-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.85rem;
-      }
-
-      .ui-table th {
-        text-align: left;
-        padding: 0.75rem 1rem;
-        font-weight: 700;
-        color: var(--navy-800);
-        border-bottom: 2px solid var(--gray-border);
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-      }
-
-      .ui-table td {
-        padding: 0.85rem 1rem;
-        border-bottom: 1px solid var(--gray-border);
-        vertical-align: middle;
-      }
-
-      .main-name {
-        font-weight: 700;
-        color: var(--navy-900);
-      }
-
-      .sub-detail {
-        font-size: 0.75rem;
-        color: var(--gray-text);
-      }
-
-      .badge {
-        display: inline-block;
-        font-size: 0.7rem;
-        font-weight: 700;
-        padding: 0.2rem 0.5rem;
-        border-radius: 0.25rem;
-      }
-
-      .badge-employer {
-        background: #ECFDF5;
-        color: #065F46;
-        border: 1px solid #A7F3D0;
-      }
-
-      .badge-merchant {
-        background: #EFF6FF;
-        color: #1E40AF;
-        border: 1px solid #BFDBFE;
-      }
-
-      .badge-subtle {
-        background: var(--gray-subtle);
-        color: var(--navy-800);
-      }
-
-      .role-badge {
-        display: inline-block;
-        font-size: 0.7rem;
-        font-weight: 700;
-        padding: 0.25rem 0.6rem;
-        border-radius: 0.35rem;
-      }
-
-      .role-admin {
-        background: #FEE2E2;
-        color: #991B1B;
-      }
-
-      .role-manager {
-        background: #FEF3C7;
-        color: #92400E;
-      }
-
-      .role-cashier {
-        background: #D1FAE5;
-        color: #065F46;
-      }
-
-      .role-auditor {
-        background: #EDE9FE;
-        color: #5B21B6;
-      }
-
-      .icon-btn {
-        background: transparent;
-        border: 1px solid var(--gray-border);
-        padding: 0.35rem 0.5rem;
-        border-radius: 0.375rem;
-        cursor: pointer;
-        margin-left: 0.35rem;
-        transition: all 0.15s;
-      }
-
-      .icon-btn:hover {
-        background: var(--gray-subtle);
-      }
-
-      .text-right {
-        text-align: right;
-      }
-
-      .empty-state {
-        text-align: center;
-        padding: 2.5rem;
-        color: var(--gray-text);
-      }
-
-      /* Modal styles */
-      .modal-backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.6);
-        backdrop-filter: blur(4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        padding: 1.5rem;
-      }
-
-      .modal-content {
-        width: 100%;
-        max-width: 600px;
-        background: #ffffff;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-        max-height: 90vh;
-        overflow-y: auto;
-      }
-
-      .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--gray-border);
-        margin-bottom: 1.25rem;
-      }
-
-      .modal-header h3 {
-        margin: 0;
-        font-weight: 800;
-        color: var(--navy-900);
-      }
-
-      .close-btn {
-        background: transparent;
-        border: none;
-        font-size: 1.5rem;
-        cursor: pointer;
-        color: var(--gray-text);
-      }
-
-      .modal-form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-      }
-
-      .form-row {
-        display: flex;
-        gap: 1rem;
-      }
-
-      .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-      }
-
-      .flex-1 {
-        flex: 1;
-      }
-
-      .flex-2 {
-        flex: 2;
-      }
-
-      .form-group label {
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: var(--navy-800);
-      }
-
-      .form-input {
-        padding: 0.6rem 0.75rem;
-        border: 1px solid var(--gray-border);
-        border-radius: 0.45rem;
-        font-size: 0.85rem;
-        outline: none;
-        width: 100%;
-        box-sizing: border-box;
-      }
-
-      .form-input:focus {
-        border-color: var(--navy-900);
-      }
-
-      .checkboxes {
-        flex-direction: column;
-        gap: 0.6rem;
-        margin-top: 0.5rem;
-      }
-
-      .checkbox-label {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.85rem;
-        cursor: pointer;
-      }
-
-      .modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.75rem;
-        margin-top: 1.25rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--gray-border);
-      }
-    `,
-  ],
+  styleUrl: './admin.component.css',
 })
 export class AdminComponent implements OnInit {
   private readonly adminService = inject(AdminService);
