@@ -15,34 +15,58 @@ export class OpenClawProvider implements WhatsAppProviderInterface {
     this.apiKey = this.config.getOrThrow<string>('OPENCLAW_API_KEY');
   }
 
-  async sendMessage(to: string, message: string): Promise<boolean> {
+  /**
+   * Sends a WhatsApp text through the OpenClaw Gateway control-plane API
+   * (POST /tools/invoke -> tool "message", action "send").
+   * `to` must be a destination understood by WhatsApp (E.164, e.g. +50588881234).
+   */
+  async sendText(to: string, message: string): Promise<{ ok: boolean; error?: string }> {
+    const url = `${this.gatewayUrl.replace(/\/+$/, '')}/tools/invoke`;
     try {
-      this.logger.log(`[OpenClaw Outbound] Enviando mensaje a ${to} vía ${this.gatewayUrl}`);
-      const response = await fetch(this.gatewayUrl, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
+          'x-openclaw-message-channel': 'whatsapp',
+          'x-openclaw-message-to': to,
         },
         body: JSON.stringify({
-          recipient: to,
-          type: 'text',
-          text: { body: message },
+          tool: 'message',
+          action: 'send',
+          args: { channel: 'whatsapp', target: to, message },
         }),
+        signal: AbortSignal.timeout(15000),
       });
 
+      const raw = await response.text();
       if (!response.ok) {
-        this.logger.warn(`OpenClaw retorno status ${response.status}`);
-        return false;
+        const detail = raw.slice(0, 300);
+        this.logger.warn(`OpenClaw /tools/invoke respondió ${response.status}: ${detail}`);
+        return { ok: false, error: `OpenClaw respondió ${response.status}: ${detail}` };
       }
-      return true;
+
+      try {
+        const parsed = JSON.parse(raw) as { ok?: boolean; error?: { message?: string } | string };
+        if (parsed.ok === false) {
+          const msg = typeof parsed.error === 'string' ? parsed.error : parsed.error?.message;
+          return { ok: false, error: msg || 'OpenClaw rechazó el envío' };
+        }
+      } catch {
+        // Non-JSON 2xx body: treat as accepted.
+      }
+      return { ok: true };
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Error conectando con OpenClaw Gateway (${this.gatewayUrl}): ${errorMsg}`);
-      return false;
+      this.logger.error(`Error conectando con OpenClaw Gateway (${url}): ${errorMsg}`);
+      return { ok: false, error: `No se pudo conectar con OpenClaw: ${errorMsg}` };
     }
   }
 
+  async sendMessage(to: string, message: string): Promise<boolean> {
+    const result = await this.sendText(to, message);
+    return result.ok;
+  }
   async sendVoucher(to: string, voucher: VoucherDetails): Promise<boolean> {
     const text = `🧾 *COMPROBANTE DE COMPRA CORPORATIVA*
 ━━━━━━━━━━━━━━━━━━━━━

@@ -22,13 +22,14 @@ import {
   CreateCatalogPayload,
   UpdateCatalogPayload,
 } from '../../core/models';
+import { WhatsappNotifyComponent } from '../whatsapp-console/whatsapp-notify.component';
 
-type AdminTab = 'companies' | 'users' | 'catalogs';
+type AdminTab = 'companies' | 'users' | 'catalogs' | 'notifications';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, StatusBannerComponent],
+  imports: [CommonModule, FormsModule, StatusBannerComponent, WhatsappNotifyComponent],
   template: `
     <div class="admin-page">
       <!-- Bento Header -->
@@ -69,6 +70,16 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
             (click)="setTab('catalogs')"
           >
             <i class="tags icon" aria-hidden="true"></i> Catálogos Maestros ({{ catalogs.length }})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab === 'notifications'"
+            class="tab-btn"
+            [class.active]="activeTab === 'notifications'"
+            (click)="setTab('notifications')"
+          >
+            <i class="paper plane icon" aria-hidden="true"></i> Notificaciones WhatsApp
           </button>
         </div>
       </div>
@@ -446,6 +457,11 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
             </table>
           </div>
         </div>
+      </div>
+
+      <!-- Pestaña de notificaciones WhatsApp (OpenClaw) -->
+      <div class="tab-content" *ngIf="activeTab === 'notifications'">
+        <app-whatsapp-notify></app-whatsapp-notify>
       </div>
 
       <!-- Modal empresa -->

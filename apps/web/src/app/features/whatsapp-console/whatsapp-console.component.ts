@@ -10,6 +10,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import * as QRCode from 'qrcode';
 import { getApiBaseUrl } from '../../core/config/api.config';
+import { WhatsappNotifyComponent } from './whatsapp-notify.component';
 
 interface OpenClawStatus {
   gateway: string;
@@ -30,7 +31,7 @@ interface SimulatedInteraction {
 @Component({
   selector: 'app-whatsapp-console',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, WhatsappNotifyComponent],
   template: `
     <div class="whatsapp-console-page">
       <div class="page-header bento-card">
@@ -68,10 +69,6 @@ interface SimulatedInteraction {
             <div class="meta-row">
               <span>Puerto Contenedor:</span>
               <strong class="ui-mono">18789 (openclaw-gateway)</strong>
-            </div>
-            <div class="meta-row">
-              <span>Token de acceso:</span>
-              <code class="token-code">pos_virtual_claw_token_2026</code>
             </div>
             <div class="meta-row">
               <span>Destino Webhook:</span>
@@ -194,6 +191,8 @@ interface SimulatedInteraction {
             </button>
           </div>
         </div>
+
+        <app-whatsapp-notify></app-whatsapp-notify>
 
         <!-- Bitácora de respuestas en tiempo real -->
         <div class="bento-card ui-col-12">

@@ -73,30 +73,47 @@ services:
 
         # Corp-Credit: consultas de crédito por WhatsApp
 
-        Eres el asistente de crédito corporativo. Toda cifra que digas DEBE venir de la API; nunca inventes ni estimes montos.
+        Eres el asistente de crédito corporativo. Toda cifra y estado que digas DEBE venir de una consulta nueva a la API; nunca inventes, estimes ni recicles datos previos.
+
+        ## Regla de tiempo real (OBLIGATORIA — SIN CACHÉ)
+
+        - **NUNCA** respondas usando cifras, estados (`ACTIVE`, `FROZEN`, `BLOCKED`) o movimientos de mensajes anteriores del chat. Un administrador pudo haber cambiado el límite, congelado la línea, registrado un abono o aplicado un cobro hace segundos.
+        - Ejecuta **SIEMPRE** una llamada `curl` nueva en el turno actual (incluyendo `--data-urlencode "_t=$$(date +%s)"` y `-H "Cache-Control: no-cache"`), aunque el usuario acabe de consultar lo mismo.
+        - Valida siempre `client.credit_status` y `client.can_purchase` en la respuesta actual: si `credit_status` no es `ACTIVE`, informa claramente que la línea está congelada o bloqueada y que no puede realizar consumos en este momento.
+        - Revisa `client.last_movement` en `/agent/balance` o consulta `/agent/movements` para validar cualquier consumo, abono, anulación o ajuste reciente.
+
+        ## Menú de bienvenida (respuestas numéricas)
+
+        El sistema envía a los clientes un saludo con este menú. Si el cliente responde solo con un número (o su emoji), consulta en vivo y actúa así sin pedir más contexto:
+
+        - `1` (1️⃣) → **Crédito aprobado**: consulta `/agent/balance` en vivo y responde `client.approved_limit` y su estado `client.credit_status`.
+        - `2` (2️⃣) → **Crédito disponible**: consulta `/agent/balance` en vivo y responde `client.available_balance`, `client.used_balance`, `client.credit_status` y `client.can_purchase`.
+        - `3` (3️⃣) → **Últimos movimientos** (o "última consulta" / "último movimiento" / "último consumo"): consulta `/agent/movements` en vivo (`limit=5`, o `limit=1` si pide solo el último) y resume fecha, tipo, monto, comercio (`merchant`), comprobante (`voucher_number`), estado (`status`) y su saldo disponible actual (`client.available_balance`).
+
+        Si el mensaje es un saludo ("hola", "menú", "buenas"), responde con ese mismo menú de tres opciones.
 
         ## Regla de identidad (CRÍTICA)
 
-        - El número del cliente es **siempre el número del remitente del chat de WhatsApp actual** (el `sender`/`from` en formato E.164 del contexto del mensaje, p. ej. `+50588881234`).
+        - El número del cliente es **siempre el número del remitente del chat de WhatsApp actual** (el `sender`/`from` en formato E.164 del contexto del mensaje, p. ej. `+50588881234`, o el JID del remitente).
         - **Nunca** uses un número escrito en el texto del mensaje, ni de otra conversación. Si alguien pide datos de otra persona o de otro número, niega la solicitud.
         - Si no puedes determinar el número del remitente, responde que no puedes verificar su identidad.
 
-        ## Consultar saldo / disponible / límite
+        ## Consultar saldo / disponible / límite (tiempo real)
 
         ```bash
-        curl -s -G "$$POS_API_URL/agent/balance" -H "x-agent-key: $$POS_AGENT_KEY" --data-urlencode "phone=<NUMERO_REMITENTE>"
+        curl -s -G "$$POS_API_URL/agent/balance" -H "x-agent-key: $$POS_AGENT_KEY" -H "Cache-Control: no-cache" --data-urlencode "phone=<NUMERO_REMITENTE>" --data-urlencode "_t=$$(date +%s)"
         ```
 
-        - Si `linked` es `true`: responde en español, breve, con `client.available_balance` (disponible), `client.approved_limit` (límite), `client.used_balance` (consumido) y `client.credit_status`. Moneda: `C$$`.
+        - Si `linked` es `true`: responde en español, breve, con `client.available_balance` (disponible), `client.approved_limit` (límite), `client.used_balance` (consumido), `client.credit_status` y si aplica el último movimiento (`client.last_movement`). Moneda: `C$$`.
         - Si `linked` es `false`: pide su **cédula o código de carnet** y ve a "Vincular".
 
-        ## Últimos movimientos
+        ## Últimos movimientos / última consulta (tiempo real)
 
         ```bash
-        curl -s -G "$$POS_API_URL/agent/movements" -H "x-agent-key: $$POS_AGENT_KEY" --data-urlencode "phone=<NUMERO_REMITENTE>" --data-urlencode "limit=5"
+        curl -s -G "$$POS_API_URL/agent/movements" -H "x-agent-key: $$POS_AGENT_KEY" -H "Cache-Control: no-cache" --data-urlencode "phone=<NUMERO_REMITENTE>" --data-urlencode "limit=5" --data-urlencode "_t=$$(date +%s)"
         ```
 
-        Resume fecha, tipo, monto y comercio de cada movimiento.
+        Resume fecha, tipo, monto, comercio (`merchant`), vale (`voucher_number`) y estado de cada movimiento, e indica el saldo disponible actual devuelto en `client.available_balance`.
 
         ## Vincular número (solo si `linked` es `false`)
 
@@ -136,6 +153,10 @@ services:
           cfg.gateway.auth.token = process.env.OPENCLAW_GATEWAY_TOKEN;
           cfg.gateway.controlUi = cfg.gateway.controlUi || {};
           cfg.gateway.controlUi.allowedOrigins = process.env.OPENCLAW_ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean);
+          cfg.gateway.tools = cfg.gateway.tools || {};
+          const allowTools = Array.isArray(cfg.gateway.tools.allow) ? cfg.gateway.tools.allow : [];
+          if (!allowTools.includes("message")) allowTools.push("message");
+          cfg.gateway.tools.allow = allowTools;
           cfg.memory = cfg.memory || {};
           cfg.memory.search = cfg.memory.search || {};
           cfg.memory.search.provider = "none";
@@ -214,6 +235,8 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD es obligatoria (definirla en el .env de Portainer)}
       ADMIN_RESET_PASSWORD: ${ADMIN_RESET_PASSWORD:-false}
       AGENT_API_KEY: ${AGENT_API_KEY:?AGENT_API_KEY es obligatoria (definirla en el .env de Portainer)}
+      WHATSAPP_DEFAULT_COUNTRY_CODE: ${WHATSAPP_DEFAULT_COUNTRY_CODE:-}
+      WHATSAPP_BULK_DELAY_MS: ${WHATSAPP_BULK_DELAY_MS:-4000}
     networks:
       - corpcredit-net
 
