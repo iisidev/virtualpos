@@ -598,6 +598,14 @@
     min-height: 44px;
     padding: 8px 14px;
   }
+
+  .pos-row-actions .ui.mini.icon.button {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 @media print {

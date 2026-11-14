@@ -6,6 +6,7 @@ import {
   CreditRequestItem,
 } from '../../core/services/credit-requests.service';
 import { StatusBannerComponent } from '../../shared/status-banner.component';
+import { formatChannelLabel, formatRequestStatusLabel } from '../../shared/ui-labels';
 
 @Component({
   selector: 'app-credit-requests',
@@ -15,7 +16,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
     <div class="requests-page">
       <div class="page-header bento-card">
         <div>
-          <h1><i class="chart line icon" aria-hidden="true"></i> Solicitudes de Aumento de Crédito</h1>
+          <h1><i class="chartline icon" aria-hidden="true"></i> Solicitudes de Aumento de Crédito</h1>
           <p>Bandeja de solicitudes recibidas vía WhatsApp Bot y Portal Web para evaluación</p>
         </div>
         <button type="button" class="ui-btn secondary-btn" (click)="loadRequests()" [disabled]="loading">
@@ -80,7 +81,8 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
                 <td>
                   <span class="ui tiny label" [class.green]="req.channel === 'WHATSAPP_BOT'">
                     <i class="whatsapp icon" *ngIf="req.channel === 'WHATSAPP_BOT'" aria-hidden="true"></i>
-                    {{ req.channel }}
+                    <i class="globe icon" *ngIf="req.channel !== 'WHATSAPP_BOT'" aria-hidden="true"></i>
+                    {{ formatChannelLabel(req.channel) }}
                   </span>
                 </td>
                 <td class="ui-amount-cell">C$ {{ formatNumber(req.current_limit) }}</td>
@@ -97,17 +99,17 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
                       blocked: req.status === 'REJECTED'
                     }"
                   >
-                    {{ req.status }}
+                    {{ formatRequestStatusLabel(req.status) }}
                   </span>
                 </td>
                 <td>
                   <div *ngIf="req.status === 'PENDING'" class="ui tiny buttons">
                     <button type="button" class="ui positive button" (click)="openReviewModal(req, 'APPROVE')">
-                      Aprobar
+                      <i class="check icon" aria-hidden="true"></i> Aprobar
                     </button>
                     <div class="or" data-text="o"></div>
                     <button type="button" class="ui negative button" (click)="openReviewModal(req, 'REJECT')">
-                      Rechazar
+                      <i class="close icon" aria-hidden="true"></i> Rechazar
                     </button>
                   </div>
                   <span *ngIf="req.status !== 'PENDING'" class="sub-text">
@@ -131,6 +133,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
         <div class="bento-card modal-content" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <h2 id="review-modal-title">
+              <i class="chartline icon" aria-hidden="true"></i>
               {{ pendingDecision.action === 'APPROVE' ? 'Aprobar Solicitud de Crédito' : 'Rechazar Solicitud de Crédito' }}
             </h2>
             <button
@@ -162,6 +165,8 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
               ></textarea>
             </div>
 
+            <div *ngIf="reviewError" class="ui negative message" role="alert">{{ reviewError }}</div>
+
             <div class="modal-actions">
               <button type="button" class="ui-btn secondary-btn" (click)="closeReviewModal()" [disabled]="resolving">
                 Cancelar
@@ -173,6 +178,13 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
                 [class.negative]="pendingDecision.action === 'REJECT'"
                 [disabled]="resolving"
               >
+                <i
+                  *ngIf="!resolving"
+                  class="icon"
+                  [class.check]="pendingDecision.action === 'APPROVE'"
+                  [class.close]="pendingDecision.action === 'REJECT'"
+                  aria-hidden="true"
+                ></i>
                 {{
                   resolving
                     ? 'Procesando...'
@@ -191,6 +203,8 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
 })
 export class CreditRequestsComponent implements OnInit {
   private readonly requestService = inject(CreditRequestsService);
+  readonly formatChannelLabel = formatChannelLabel;
+  readonly formatRequestStatusLabel = formatRequestStatusLabel;
 
   requests: CreditRequestItem[] = [];
   loading = false;
@@ -200,6 +214,7 @@ export class CreditRequestsComponent implements OnInit {
 
   pendingDecision: { request: CreditRequestItem; action: 'APPROVE' | 'REJECT' } | null = null;
   reviewNotes = '';
+  reviewError = '';
   resolving = false;
 
   ngOnInit(): void {
@@ -231,17 +246,20 @@ export class CreditRequestsComponent implements OnInit {
   openReviewModal(request: CreditRequestItem, action: 'APPROVE' | 'REJECT'): void {
     this.pendingDecision = { request, action };
     this.reviewNotes = '';
+    this.reviewError = '';
   }
 
   closeReviewModal(): void {
     this.pendingDecision = null;
     this.reviewNotes = '';
+    this.reviewError = '';
   }
 
   confirmReview(): void {
     if (!this.pendingDecision) return;
     const { request, action } = this.pendingDecision;
     this.resolving = true;
+    this.reviewError = '';
     this.feedbackMessage = '';
 
     this.requestService.review(request.id, action, this.reviewNotes.trim()).subscribe({
@@ -257,8 +275,7 @@ export class CreditRequestsComponent implements OnInit {
       },
       error: (err) => {
         this.resolving = false;
-        this.feedbackType = 'error';
-        this.feedbackMessage = err.error?.message || 'Error al procesar la resolución.';
+        this.reviewError = err.error?.message || 'Error al procesar la resolución.';
       },
     });
   }
