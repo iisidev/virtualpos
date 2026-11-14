@@ -1,0 +1,183 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.import-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ui-gap);
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.card-title > i.icon {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.card-title h3 {
+  margin: 0;
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--text-primary);
+}
+
+.step-circle {
+  width: 28px;
+  height: 28px;
+  background: var(--surface-sidebar);
+  color: var(--sidebar-text);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--ui-small-size);
+  flex-shrink: 0;
+}
+
+.card-desc {
+  color: var(--text-muted);
+  font-size: var(--ui-control-size);
+  margin: 0 0 16px;
+}
+
+.template-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  background: var(--surface-balance);
+  border: 1px solid var(--balance-border);
+  padding: 18px;
+  border-radius: 10px;
+}
+
+.control-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.control-field label {
+  font-size: var(--ui-small-size);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.select-box {
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.metric-card {
+  background: var(--surface-balance);
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--balance-border);
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.metric-card .val {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.metric-card .lbl {
+  font-size: var(--ui-small-size);
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.metric-card.new .val {
+  color: var(--emerald-text);
+}
+
+.metric-card.update .val {
+  color: var(--amber-text);
+}
+
+.metric-card.error.has-errors {
+  background: var(--red-subtle);
+  border-color: var(--danger-border);
+}
+
+.metric-card.error.has-errors .val {
+  color: var(--red-main);
+}
+
+.preview-table-scroll {
+  margin-top: 18px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.commit-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.logs-table-wrap {
+  margin-top: 14px;
+}
+
+.log-ok {
+  color: var(--emerald-text);
+  font-weight: 700;
+}
+
+.log-err {
+  color: var(--red-main);
+  font-weight: 700;
+}
+
+.empty-table-cell {
+  text-align: center !important;
+  color: var(--text-muted);
+  padding: 28px 20px !important;
+}
+
+@container workspace (max-width: 720px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .upload-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@container workspace (max-width: 440px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}

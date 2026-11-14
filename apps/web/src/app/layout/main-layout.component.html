@@ -1,0 +1,158 @@
+<div class="ui-layout" [class.is-expanded]="menuOpen()">
+  <div
+    *ngIf="isSmallScreen() && menuOpen()"
+    class="ui-menu-backdrop no-print"
+    aria-hidden="true"
+    (click)="closeMenu()"
+  ></div>
+
+  <aside
+    #menuPanel
+    id="main-navigation"
+    class="ui-sidebar ui-scroll-hidden no-print"
+    [attr.role]="isSmallScreen() && menuOpen() ? 'dialog' : null"
+    [attr.aria-modal]="isSmallScreen() && menuOpen() ? 'true' : null"
+    aria-label="Menú principal"
+  >
+    <div class="ui-brand">
+      <span class="ui-brand-mark" aria-hidden="true">
+        <i class="credit card outline icon"></i>
+      </span>
+      <div class="ui-nav-label ui-brand-copy">
+        <strong>CORP-CREDIT POS</strong>
+        <span>Crédito Corporativo</span>
+      </div>
+      <button type="button" class="ui-menu-close" aria-label="Cerrar menú" (click)="closeMenu()">
+        <i class="close icon" aria-hidden="true"></i>
+      </button>
+    </div>
+
+    <nav aria-label="Navegación principal">
+      <a
+        routerLink="/pos"
+        routerLinkActive="active"
+        class="ui-nav-link"
+        aria-label="Terminal POS"
+        title="Terminal POS"
+        (click)="onNavLinkClick()"
+      >
+        <i class="barcode icon" aria-hidden="true"></i>
+        <span class="ui-nav-label">Terminal POS</span>
+      </a>
+      <a
+        *ngIf="canManageCredit()"
+        routerLink="/clients"
+        routerLinkActive="active"
+        class="ui-nav-link"
+        aria-label="Clientes"
+        title="Clientes"
+        (click)="onNavLinkClick()"
+      >
+        <i class="users icon" aria-hidden="true"></i>
+        <span class="ui-nav-label">Clientes</span>
+      </a>
+      <a
+        *ngIf="isAdmin()"
+        routerLink="/admin"
+        routerLinkActive="active"
+        class="ui-nav-link"
+        aria-label="Panel Admin"
+        title="Panel Admin"
+        (click)="onNavLinkClick()"
+      >
+        <i class="cogs icon" aria-hidden="true"></i>
+        <span class="ui-nav-label">Panel Admin</span>
+      </a>
+      <a
+        *ngIf="canManageCredit()"
+        routerLink="/import-export"
+        routerLinkActive="active"
+        class="ui-nav-link"
+        aria-label="Importación Masiva"
+        title="Importación Masiva"
+        (click)="onNavLinkClick()"
+      >
+        <i class="file excel outline icon" aria-hidden="true"></i>
+        <span class="ui-nav-label">Importación Masiva</span>
+      </a>
+      <a
+        *ngIf="canManageCredit()"
+        routerLink="/credit-requests"
+        routerLinkActive="active"
+        class="ui-nav-link"
+        aria-label="Solicitudes Límite"
+        title="Solicitudes Límite"
+        (click)="onNavLinkClick()"
+      >
+        <i class="chart line icon" aria-hidden="true"></i>
+        <span class="ui-nav-label">Solicitudes Límite</span>
+      </a>
+      <a
+        routerLink="/whatsapp"
+        routerLinkActive="active"
+        class="ui-nav-link"
+        aria-label="WhatsApp y OpenClaw"
+        title="WhatsApp &amp; OpenClaw"
+        (click)="onNavLinkClick()"
+      >
+        <i class="whatsapp icon" aria-hidden="true"></i>
+        <span class="ui-nav-label">WhatsApp &amp; OpenClaw</span>
+      </a>
+      <a
+        routerLink="/kiosk"
+        target="_blank"
+        rel="noopener"
+        class="ui-nav-link ui-nav-kiosk"
+        aria-label="Kiosco Tótem, abre otra pestaña"
+        title="Kiosco Tótem"
+        (click)="onNavLinkClick()"
+      >
+        <i class="tablet alternate icon" aria-hidden="true"></i>
+        <span class="ui-nav-label">Kiosco Tótem</span>
+        <i class="external alternate icon ui-nav-external ui-nav-label" aria-hidden="true"></i>
+      </a>
+    </nav>
+  </aside>
+
+  <div class="ui-layout-main" [attr.inert]="isSmallScreen() && menuOpen() ? '' : null">
+    <header class="ui-topbar no-print">
+      <div class="ui-topbar-left">
+        <button
+          #menuToggle
+          type="button"
+          class="ui-menu-toggle"
+          aria-controls="main-navigation"
+          [attr.aria-expanded]="menuOpen()"
+          [attr.aria-label]="menuOpen() ? 'Contraer menú' : 'Expandir menú'"
+          (click)="toggleMenu()"
+        >
+          <i class="bars icon" aria-hidden="true"></i>
+        </button>
+        <span class="ui-terminal">
+          <span class="ui-terminal-dot" aria-hidden="true"></span>
+          CAJA: <strong class="ui-mono">POS-CAJA-01</strong>
+        </span>
+      </div>
+
+      <div class="ui-user" *ngIf="auth.currentUser() as user">
+        <div>
+          <strong>{{ user.full_name }}</strong>
+          <span>{{ user.role }}</span>
+        </div>
+        <button
+          type="button"
+          class="ui-menu-toggle"
+          aria-label="Cerrar sesión"
+          title="Cerrar sesión"
+          (click)="auth.logout()"
+        >
+          <i class="sign-out alternate icon" aria-hidden="true"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="main-canvas">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

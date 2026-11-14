@@ -14,14 +14,14 @@ import {
     <div class="requests-page">
       <div class="page-header bento-card">
         <div>
-          <h2><i class="chart line icon"></i> Solicitudes de Aumento de Crédito</h2>
+          <h2><i class="chart line icon" aria-hidden="true"></i> Solicitudes de Aumento de Crédito</h2>
           <p>Bandeja de solicitudes recibidas vía WhatsApp Bot y Portal Web para evaluación</p>
         </div>
       </div>
 
-      <div class="bento-card" style="margin-top: 1.25rem;">
+      <div class="bento-card">
         <div class="table-responsive">
-          <table class="ui very basic selectable table">
+          <table class="ui selectable table">
             <thead>
               <tr>
                 <th>Fecha</th>
@@ -29,8 +29,8 @@ import {
                 <th>Cédula / Carnet</th>
                 <th>Empresa</th>
                 <th>Canal</th>
-                <th>Límite Actual</th>
-                <th>Límite Solicitado</th>
+                <th class="text-right">Límite Actual</th>
+                <th class="text-right">Límite Solicitado</th>
                 <th>Motivo Declarado</th>
                 <th>Estado</th>
                 <th>Resolución</th>
@@ -38,23 +38,25 @@ import {
             </thead>
             <tbody>
               <tr *ngFor="let req of requests">
-                <td>{{ req.created_at | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td class="ui-mono">{{ req.created_at | date: 'dd/MM/yyyy HH:mm' }}</td>
                 <td>
                   <strong>{{ req.client?.first_name }} {{ req.client?.last_name }}</strong>
                 </td>
                 <td>
-                  <div>{{ req.client?.national_id }}</div>
-                  <span class="carnet-pill">{{ req.client?.employee_code }}</span>
+                  <div class="ui-mono">{{ req.client?.national_id }}</div>
+                  <span class="carnet-pill ui-mono">{{ req.client?.employee_code }}</span>
                 </td>
                 <td>{{ req.client?.employer_company?.name || 'Empresa' }}</td>
                 <td>
                   <span class="ui tiny label" [class.green]="req.channel === 'WHATSAPP_BOT'">
-                    <i class="whatsapp icon" *ngIf="req.channel === 'WHATSAPP_BOT'"></i>
+                    <i class="whatsapp icon" *ngIf="req.channel === 'WHATSAPP_BOT'" aria-hidden="true"></i>
                     {{ req.channel }}
                   </span>
                 </td>
-                <td>C$ {{ formatNumber(req.current_limit) }}</td>
-                <td><strong class="ui blue text">C$ {{ formatNumber(req.requested_limit) }}</strong></td>
+                <td class="ui-amount-cell">C$ {{ formatNumber(req.current_limit) }}</td>
+                <td class="ui-amount-cell">
+                  <strong class="requested-limit-value">C$ {{ formatNumber(req.requested_limit) }}</strong>
+                </td>
                 <td><em>"{{ req.reason }}"</em></td>
                 <td>
                   <span
@@ -70,11 +72,11 @@ import {
                 </td>
                 <td>
                   <div *ngIf="req.status === 'PENDING'" class="ui tiny buttons">
-                    <button class="ui positive button" (click)="resolve(req, 'APPROVE')">
+                    <button type="button" class="ui positive button" (click)="resolve(req, 'APPROVE')">
                       Aprobar
                     </button>
                     <div class="or" data-text="o"></div>
-                    <button class="ui negative button" (click)="resolve(req, 'REJECT')">
+                    <button type="button" class="ui negative button" (click)="resolve(req, 'REJECT')">
                       Rechazar
                     </button>
                   </div>
@@ -84,7 +86,7 @@ import {
                 </td>
               </tr>
               <tr *ngIf="requests.length === 0">
-                <td colspan="10" style="text-align: center; color: var(--gray-text); padding: 2rem;">
+                <td colspan="10" class="empty-table-cell">
                   No hay solicitudes registradas en la bandeja.
                 </td>
               </tr>
@@ -94,38 +96,7 @@ import {
       </div>
     </div>
   `,
-  styles: [
-    `
-      .requests-page {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .page-header h2 {
-        margin: 0;
-        font-weight: 800;
-      }
-
-      .page-header p {
-        margin: 0.25rem 0 0;
-        color: var(--gray-text);
-      }
-
-      .carnet-pill {
-        display: inline-block;
-        font-size: 0.7rem;
-        font-weight: 700;
-        background: var(--gray-subtle);
-        padding: 0.15rem 0.4rem;
-        border-radius: 0.25rem;
-      }
-
-      .sub-text {
-        font-size: 0.75rem;
-        color: var(--gray-text);
-      }
-    `,
-  ],
+  styleUrl: './credit-requests.component.css',
 })
 export class CreditRequestsComponent implements OnInit {
   private readonly requestService = inject(CreditRequestsService);
