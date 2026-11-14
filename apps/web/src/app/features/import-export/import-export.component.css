@@ -21,11 +21,28 @@
   color: var(--text-secondary);
 }
 
+.card-title h2,
 .card-title h3 {
   margin: 0;
   font-weight: 700;
   font-size: 17px;
   color: var(--text-primary);
+}
+
+.logs-header {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.logs-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logs-title-group > i.icon {
+  margin: 0;
+  color: var(--text-secondary);
 }
 
 .step-circle {
@@ -73,10 +90,15 @@
   min-width: 0;
 }
 
-.control-field label {
+.control-field label,
+.control-field .field-caption {
   font-size: var(--ui-small-size);
   font-weight: 600;
   color: var(--text-secondary);
+}
+
+.dry-run-error-alert {
+  margin-top: 16px !important;
 }
 
 .select-box {

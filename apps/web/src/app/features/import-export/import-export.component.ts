@@ -6,38 +6,63 @@ import {
   DryRunResult,
   ImportBatchLog,
 } from '../../core/services/import-export.service';
+import { StatusBannerComponent } from '../../shared/status-banner.component';
 
 @Component({
   selector: 'app-import-export',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, StatusBannerComponent],
   template: `
     <div class="import-page">
       <div class="page-header bento-card">
         <div>
-          <h2><i class="file excel outline icon"></i> Importación y Exportación Masiva</h2>
+          <h1><i class="file excel outline icon" aria-hidden="true"></i> Importación y Exportación Masiva</h1>
           <p>Motor transaccional con validación previa (Dry-Run) y descarga de plantillas oficiales</p>
         </div>
       </div>
 
+      <app-status-banner
+        [message]="feedbackMessage"
+        [type]="feedbackType"
+        (dismiss)="feedbackMessage = ''"
+      ></app-status-banner>
+
       <div class="bento-grid">
         <!-- STEP 1: DOWNLOAD TEMPLATES (4 COLS) -->
-        <div class="bento-card ui-col-4">
+        <div class="bento-card ui-col-4 ui-col-tablet-full">
           <div class="card-title">
             <span class="step-circle">1</span>
-            <h3>Descargar Plantillas</h3>
+            <h2>Descargar Plantillas</h2>
           </div>
           <p class="card-desc">Obtenga los archivos base en Excel con el formato exacto requerido:</p>
 
           <div class="template-buttons">
-            <button type="button" class="ui fluid basic primary button" (click)="download('clients')">
-              <i class="download icon" aria-hidden="true"></i> Plantilla Clientes Nuevos (.xlsx)
+            <button
+              type="button"
+              class="ui fluid basic primary button"
+              (click)="download('clients')"
+              [disabled]="downloadingType !== null"
+            >
+              <i class="download icon" aria-hidden="true"></i>
+              {{ downloadingType === 'clients' ? 'Descargando...' : 'Plantilla Clientes Nuevos (.xlsx)' }}
             </button>
-            <button type="button" class="ui fluid basic primary button" (click)="download('credit_limits')">
-              <i class="download icon" aria-hidden="true"></i> Plantilla Aumento de Límites (.xlsx)
+            <button
+              type="button"
+              class="ui fluid basic primary button"
+              (click)="download('credit_limits')"
+              [disabled]="downloadingType !== null"
+            >
+              <i class="download icon" aria-hidden="true"></i>
+              {{ downloadingType === 'credit_limits' ? 'Descargando...' : 'Plantilla Aumento de Límites (.xlsx)' }}
             </button>
-            <button type="button" class="ui fluid basic primary button" (click)="download('payments')">
-              <i class="download icon" aria-hidden="true"></i> Plantilla Abonos de Planilla (.xlsx)
+            <button
+              type="button"
+              class="ui fluid basic primary button"
+              (click)="download('payments')"
+              [disabled]="downloadingType !== null"
+            >
+              <i class="download icon" aria-hidden="true"></i>
+              {{ downloadingType === 'payments' ? 'Descargando...' : 'Plantilla Abonos de Planilla (.xlsx)' }}
             </button>
           </div>
         </div>
@@ -46,14 +71,14 @@ import {
         <div class="bento-card ui-col-8">
           <div class="card-title">
             <span class="step-circle">2</span>
-            <h3>Carga y Previsualización Transaccional (Dry-Run)</h3>
+            <h2>Carga y Previsualización Transaccional (Dry-Run)</h2>
           </div>
           <p class="card-desc">Cargue su archivo para validar formato, duplicados y reglas financieras antes de aplicar a la base de datos:</p>
 
           <div class="upload-controls">
             <div class="control-field">
-              <label>Tipo de Operación:</label>
-              <select class="ui dropdown select-box" [(ngModel)]="selectedType">
+              <label for="import-operation-type">Tipo de Operación:</label>
+              <select id="import-operation-type" class="ui dropdown select-box" [(ngModel)]="selectedType">
                 <option value="CLIENTS">Creación / Actualización de Clientes</option>
                 <option value="CREDIT_LIMITS">Ajuste Masivo de Límites</option>
                 <option value="PAYMENTS">Aplicación de Pagos / Abonos de Planilla</option>
@@ -61,10 +86,16 @@ import {
             </div>
 
             <div class="control-field">
-              <label>Seleccionar Archivo (o Simular Lote):</label>
+              <span class="field-caption">Simular Lote de Prueba:</span>
               <div class="action-buttons-row">
-                <button type="button" class="ui teal button" (click)="loadDemoBatch()">
-                  <i class="magic icon" aria-hidden="true"></i> Cargar Lote de Prueba (5 Filas)
+                <button
+                  type="button"
+                  class="ui teal button"
+                  (click)="loadDemoBatch()"
+                  [disabled]="runningDryRun"
+                >
+                  <i [ngClass]="runningDryRun ? 'spinner loading icon' : 'upload icon'" aria-hidden="true"></i>
+                  {{ runningDryRun ? 'Validando Lote...' : 'Cargar Lote de Prueba' }}
                 </button>
               </div>
             </div>
@@ -92,7 +123,7 @@ import {
             </div>
 
             <!-- Error List Alert -->
-            <div *ngIf="dryRunResult.error_count > 0" class="ui negative message" style="margin-top: 1rem;">
+            <div *ngIf="dryRunResult.error_count > 0" class="ui negative message dry-run-error-alert" role="alert">
               <div class="header">Se encontraron {{ dryRunResult.error_count }} errores:</div>
               <ul class="list">
                 <li *ngFor="let err of dryRunResult.errors">
@@ -152,12 +183,29 @@ import {
 
         <!-- BATCH LOGS HISTORY (12 COLS) -->
         <div class="bento-card ui-col-12">
-          <div class="card-title">
-            <i class="history icon" aria-hidden="true"></i>
-            <h3>Historial de Lotes Importados (Trazabilidad Total)</h3>
+          <div class="card-title logs-header">
+            <div class="logs-title-group">
+              <i class="history icon" aria-hidden="true"></i>
+              <h2>Historial de Lotes Importados (Trazabilidad Total)</h2>
+            </div>
+            <button type="button" class="ui-btn secondary-btn" (click)="loadLogs()" [disabled]="loadingLogs">
+              <i class="refresh icon" aria-hidden="true"></i> {{ loadingLogs ? 'Actualizando...' : 'Actualizar' }}
+            </button>
           </div>
 
-          <div class="table-responsive logs-table-wrap">
+          <div *ngIf="loadingLogs && batchLogs.length === 0" class="ui-state-box" role="status">
+            <i class="spinner loading icon" aria-hidden="true"></i>
+            <span>Cargando historial de lotes...</span>
+          </div>
+
+          <div *ngIf="logsError && batchLogs.length === 0" class="ui-banner error" role="alert">
+            <span class="ui-banner-msg">
+              <i class="exclamation triangle icon" aria-hidden="true"></i> {{ logsError }}
+            </span>
+            <button type="button" class="ui-btn primary-btn" (click)="loadLogs()">Reintentar</button>
+          </div>
+
+          <div *ngIf="!logsError && (batchLogs.length > 0 || !loadingLogs)" class="table-responsive logs-table-wrap">
             <table class="ui table">
               <thead>
                 <tr>
@@ -200,7 +248,13 @@ export class ImportExportComponent implements OnInit {
   selectedType = 'CLIENTS';
   dryRunResult: DryRunResult | null = null;
   currentRows: Array<Record<string, string | number>> = [];
+  downloadingType: string | null = null;
+  runningDryRun = false;
   committing = false;
+  loadingLogs = false;
+  logsError = '';
+  feedbackMessage = '';
+  feedbackType: 'success' | 'error' = 'success';
   batchLogs: ImportBatchLog[] = [];
 
   ngOnInit(): void {
@@ -208,13 +262,23 @@ export class ImportExportComponent implements OnInit {
   }
 
   download(type: string): void {
-    this.importService.downloadTemplate(type).subscribe((blob) => {
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `plantilla_${type}.xlsx`;
-      a.click();
-      window.URL.revokeObjectURL(url);
+    this.downloadingType = type;
+    this.feedbackMessage = '';
+    this.importService.downloadTemplate(type).subscribe({
+      next: (blob) => {
+        this.downloadingType = null;
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `plantilla_${type}.xlsx`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (err) => {
+        this.downloadingType = null;
+        this.feedbackType = 'error';
+        this.feedbackMessage = err.error?.message || 'No se pudo descargar la plantilla solicitada.';
+      },
     });
   }
 
@@ -280,12 +344,17 @@ export class ImportExportComponent implements OnInit {
       ];
     }
 
+    this.runningDryRun = true;
+    this.feedbackMessage = '';
     this.importService.dryRun(this.selectedType, this.currentRows).subscribe({
       next: (res) => {
+        this.runningDryRun = false;
         this.dryRunResult = res;
       },
       error: (err) => {
-        alert(err.error?.message || 'Error al ejecutar Dry-Run');
+        this.runningDryRun = false;
+        this.feedbackType = 'error';
+        this.feedbackMessage = err.error?.message || 'Error al ejecutar Dry-Run';
       },
     });
   }
@@ -293,28 +362,38 @@ export class ImportExportComponent implements OnInit {
   commitImport(): void {
     if (!this.dryRunResult || this.dryRunResult.error_count > 0) return;
     this.committing = true;
+    this.feedbackMessage = '';
 
     this.importService
       .commit(this.selectedType, `lote_${this.selectedType.toLowerCase()}_${Date.now()}.xlsx`, this.currentRows)
       .subscribe({
         next: () => {
           this.committing = false;
-          alert('¡Importación completada con éxito en el libro mayor!');
+          this.feedbackType = 'success';
+          this.feedbackMessage = 'Importación completada con éxito en el libro mayor.';
           this.dryRunResult = null;
           this.currentRows = [];
           this.loadLogs();
         },
         error: (err) => {
           this.committing = false;
-          alert(err.error?.message || 'Error en la transacción de importación');
+          this.feedbackType = 'error';
+          this.feedbackMessage = err.error?.message || 'Error en la transacción de importación';
         },
       });
   }
 
   loadLogs(): void {
+    this.loadingLogs = true;
+    this.logsError = '';
     this.importService.getLogs().subscribe({
       next: (logs) => {
         this.batchLogs = logs;
+        this.loadingLogs = false;
+      },
+      error: (err) => {
+        this.loadingLogs = false;
+        this.logsError = err.error?.message || 'No se pudo cargar el historial de importaciones.';
       },
     });
   }
