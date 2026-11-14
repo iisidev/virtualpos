@@ -2,6 +2,7 @@ import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../core/services/admin.service';
+import { AuthService } from '../../core/services/auth.service';
 import { CreditRequestsService } from '../../core/services/credit-requests.service';
 import {
   ClientProfile,
@@ -10,6 +11,7 @@ import {
   CatalogCategory,
   CreateClientPayload,
   UpdateClientPayload,
+  UserRole,
 } from '../../core/models';
 import { StatusBannerComponent } from '../../shared/status-banner.component';
 import { formatCreditStatusLabel } from '../../shared/ui-labels';
@@ -27,7 +29,7 @@ import { formatCreditStatusLabel } from '../../shared/ui-labels';
           <p>Control de perfiles de colaboradores, saldos, límites asignados y bloqueos preventivos</p>
         </div>
 
-        <button type="button" class="ui-btn primary-btn" (click)="openClientModal()">
+        <button *ngIf="canManageClients" type="button" class="ui-btn primary-btn" (click)="openClientModal()">
           <i class="user plus icon" aria-hidden="true"></i> Registrar Nuevo Cliente
         </button>
       </div>
@@ -160,55 +162,69 @@ import { formatCreditStatusLabel } from '../../shared/ui-labels';
                   </span>
                 </td>
                 <td class="text-right">
-                  <button
-                    type="button"
-                    class="icon-btn"
-                    (click)="openClientModal(c)"
-                    title="Editar Perfil"
-                    [attr.aria-label]="'Editar perfil de ' + c.full_name"
-                  >
-                    <i class="edit outline icon" aria-hidden="true"></i>
-                  </button>
-                  <button
-                    type="button"
-                    *ngIf="c.credit_status === 'ACTIVE'"
-                    class="icon-btn"
-                    (click)="openIncreaseRequestModal(c)"
-                    title="Solicitar Aumento de Límite"
-                    [attr.aria-label]="'Solicitar aumento de crédito para ' + c.full_name"
-                  >
-                    <i class="chartline icon" aria-hidden="true"></i>
-                  </button>
-                  <button
-                    type="button"
-                    *ngIf="c.credit_status === 'PENDING_APPROVAL'"
-                    class="icon-btn success"
-                    (click)="toggleStatus(c, 'ACTIVE')"
-                    title="Aprobar y Activar Línea de Crédito"
-                    [attr.aria-label]="'Aprobar crédito de ' + c.full_name"
-                  >
-                    <i class="check circle icon" aria-hidden="true"></i>
-                  </button>
-                  <button
-                    type="button"
-                    *ngIf="c.credit_status === 'ACTIVE' || c.credit_status === 'PENDING_APPROVAL'"
-                    class="icon-btn danger"
-                    (click)="toggleStatus(c, 'BLOCKED')"
-                    [title]="c.credit_status === 'PENDING_APPROVAL' ? 'Rechazar / Bloquear Línea' : 'Bloquear Línea de Crédito'"
-                    [attr.aria-label]="'Bloquear línea de crédito de ' + c.full_name"
-                  >
-                    <i class="lock icon" aria-hidden="true"></i>
-                  </button>
-                  <button
-                    type="button"
-                    *ngIf="c.credit_status === 'BLOCKED' || c.credit_status === 'FROZEN'"
-                    class="icon-btn success"
-                    (click)="toggleStatus(c, 'ACTIVE')"
-                    title="Reactivar Línea de Crédito"
-                    [attr.aria-label]="'Reactivar línea de crédito de ' + c.full_name"
-                  >
-                    <i class="unlock icon" aria-hidden="true"></i>
-                  </button>
+                  <div class="client-actions-row" *ngIf="canManageClients; else readOnlyActions">
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      (click)="openClientModal(c)"
+                      title="Editar Perfil"
+                      [attr.aria-label]="'Editar perfil de ' + c.full_name"
+                    >
+                      <i class="edit outline icon" aria-hidden="true"></i>
+                    </button>
+                    <button
+                      type="button"
+                      *ngIf="c.credit_status === 'ACTIVE'"
+                      class="icon-btn"
+                      (click)="openIncreaseRequestModal(c)"
+                      title="Solicitar Aumento de Límite"
+                      [attr.aria-label]="'Solicitar aumento de crédito para ' + c.full_name"
+                    >
+                      <i class="chartline icon" aria-hidden="true"></i>
+                    </button>
+                    <button
+                      type="button"
+                      *ngIf="c.credit_status === 'PENDING_APPROVAL'"
+                      class="icon-btn success"
+                      (click)="toggleStatus(c, 'ACTIVE')"
+                      title="Aprobar y Activar Línea de Crédito"
+                      [attr.aria-label]="'Aprobar crédito de ' + c.full_name"
+                    >
+                      <i class="check circle icon" aria-hidden="true"></i>
+                    </button>
+                    <button
+                      type="button"
+                      *ngIf="c.credit_status === 'ACTIVE' || c.credit_status === 'PENDING_APPROVAL'"
+                      class="icon-btn danger"
+                      (click)="toggleStatus(c, 'BLOCKED')"
+                      [title]="c.credit_status === 'PENDING_APPROVAL' ? 'Rechazar / Bloquear Línea' : 'Bloquear Línea de Crédito'"
+                      [attr.aria-label]="'Bloquear línea de crédito de ' + c.full_name"
+                    >
+                      <i class="lock icon" aria-hidden="true"></i>
+                    </button>
+                    <button
+                      type="button"
+                      *ngIf="c.credit_status === 'BLOCKED' || c.credit_status === 'FROZEN'"
+                      class="icon-btn success"
+                      (click)="toggleStatus(c, 'ACTIVE')"
+                      title="Reactivar Línea de Crédito"
+                      [attr.aria-label]="'Reactivar línea de crédito de ' + c.full_name"
+                    >
+                      <i class="unlock icon" aria-hidden="true"></i>
+                    </button>
+                    <button
+                      type="button"
+                      class="icon-btn danger"
+                      (click)="openDeleteModal(c)"
+                      title="Eliminar Cliente"
+                      [attr.aria-label]="'Eliminar a ' + c.full_name"
+                    >
+                      <i class="trash icon" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                  <ng-template #readOnlyActions>
+                    <span class="read-only-tag">Solo lectura</span>
+                  </ng-template>
                 </td>
               </tr>
               <tr *ngIf="clients.length === 0">
@@ -563,14 +579,124 @@ import { formatCreditStatusLabel } from '../../shared/ui-labels';
           </form>
         </div>
       </div>
+
+      <!-- Modal confirmar eliminación con pregunta de verificación -->
+      <div
+        *ngIf="pendingDeleteClient"
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="client-delete-modal-title"
+        (click)="!deletingClient && closeDeleteModal()"
+      >
+        <div class="bento-card modal-content delete-modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2 id="client-delete-modal-title" class="delete-modal-title">
+              <i class="exclamation triangle icon" aria-hidden="true"></i>
+              Confirmar Eliminación de Cliente
+            </h2>
+            <button type="button" class="close-btn" aria-label="Cerrar ventana" (click)="!deletingClient && closeDeleteModal()">&times;</button>
+          </div>
+
+          <form (ngSubmit)="confirmDeleteClient()" class="modal-form">
+            <div class="delete-question-box">
+              <p class="delete-question">
+                ¿Está seguro de que desea eliminar permanentemente al cliente
+                <strong>{{ pendingDeleteClient.full_name }}</strong>?
+              </p>
+              <p class="delete-hint">
+                Esta acción eliminará su perfil y solicitudes pendientes de la base de datos y quedará registrada en la bitácora de auditoría. Si el cliente ya posee movimientos financieros, el sistema protegerá la auditoría y sugerirá bloquear su línea en su lugar.
+              </p>
+            </div>
+
+            <div class="delete-summary-grid">
+              <div>
+                <span class="summary-label">Cédula</span>
+                <strong class="ui-mono">{{ pendingDeleteClient.national_id }}</strong>
+              </div>
+              <div>
+                <span class="summary-label">Carnet</span>
+                <strong class="ui-mono">{{ pendingDeleteClient.employee_code }}</strong>
+              </div>
+              <div>
+                <span class="summary-label">Empresa Empleadora</span>
+                <strong>{{ pendingDeleteClient.employer_name }}</strong>
+              </div>
+              <div>
+                <span class="summary-label">Saldo Consumido</span>
+                <strong [class.ui-credit-danger]="toNumber(pendingDeleteClient.used_balance) > 0">
+                  C$ {{ formatNumber(pendingDeleteClient.used_balance) }}
+                </strong>
+              </div>
+            </div>
+
+            <div *ngIf="toNumber(pendingDeleteClient.used_balance) > 0" class="ui-banner error" role="alert">
+              <span class="ui-banner-msg">
+                <i class="ban icon" aria-hidden="true"></i>
+                Este colaborador tiene saldo consumido activo (C$ {{ formatNumber(pendingDeleteClient.used_balance) }}). No se permite su eliminación física; bloquee su línea de crédito.
+              </span>
+            </div>
+
+            <div class="form-group">
+              <label for="client-delete-reason">Motivo de eliminación (opcional, registrado en auditoría)</label>
+              <input
+                id="client-delete-reason"
+                type="text"
+                class="form-input"
+                [(ngModel)]="deleteReason"
+                name="deleteReason"
+                placeholder="Ej. Registro duplicado / error de alta inicial"
+                [disabled]="deletingClient"
+              />
+            </div>
+
+            <label class="verify-check-label">
+              <input
+                type="checkbox"
+                [(ngModel)]="deleteConfirmed"
+                name="deleteConfirmed"
+                [disabled]="deletingClient"
+              />
+              <span>
+                Sí, verifiqué la identidad del colaborador y confirmo que deseo eliminar permanentemente este cliente.
+              </span>
+            </label>
+
+            <div *ngIf="deleteError" class="ui-banner error" role="alert">
+              <span class="ui-banner-msg">
+                <i class="exclamation circle icon" aria-hidden="true"></i> {{ deleteError }}
+              </span>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="ui-btn secondary-btn" (click)="closeDeleteModal()" [disabled]="deletingClient">
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                class="ui-btn danger-btn"
+                [disabled]="deletingClient || !deleteConfirmed || toNumber(pendingDeleteClient.used_balance) > 0"
+              >
+                <i class="trash icon" *ngIf="!deletingClient" aria-hidden="true"></i>
+                {{ deletingClient ? 'Eliminando...' : 'Sí, Eliminar Cliente' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   `,
   styleUrl: './clients-list.component.css',
 })
 export class ClientsListComponent implements OnInit {
   private readonly adminService = inject(AdminService);
+  private readonly authService = inject(AuthService);
   private readonly creditRequestsService = inject(CreditRequestsService);
   readonly formatCreditStatusLabel = formatCreditStatusLabel;
+
+  get canManageClients(): boolean {
+    return this.authService.hasRole(UserRole.SUPER_ADMIN, UserRole.CREDIT_MANAGER);
+  }
 
   clients: ClientProfile[] = [];
   companies: Company[] = [];
@@ -604,6 +730,12 @@ export class ClientsListComponent implements OnInit {
   increaseReason = '';
   creatingIncrease = false;
   increaseError = '';
+
+  pendingDeleteClient: ClientProfile | null = null;
+  deleteReason = '';
+  deleteConfirmed = false;
+  deletingClient = false;
+  deleteError = '';
 
   clientForm: {
     employer_company_id: string;
@@ -642,7 +774,9 @@ export class ClientsListComponent implements OnInit {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.requestTargetClient && !this.creatingIncrease) {
+    if (this.pendingDeleteClient && !this.deletingClient) {
+      this.closeDeleteModal();
+    } else if (this.requestTargetClient && !this.creatingIncrease) {
       this.closeIncreaseRequestModal();
     } else if (this.pendingStatusChange && !this.updatingStatus) {
       this.closeStatusModal();
@@ -907,6 +1041,42 @@ export class ClientsListComponent implements OnInit {
           this.increaseError = err.error?.message || 'No se pudo registrar la solicitud de aumento';
         },
       });
+  }
+
+  openDeleteModal(client: ClientProfile): void {
+    this.pendingDeleteClient = client;
+    this.deleteReason = '';
+    this.deleteConfirmed = false;
+    this.deleteError = '';
+  }
+
+  closeDeleteModal(): void {
+    this.pendingDeleteClient = null;
+    this.deleteReason = '';
+    this.deleteConfirmed = false;
+    this.deleteError = '';
+  }
+
+  confirmDeleteClient(): void {
+    if (!this.pendingDeleteClient || !this.deleteConfirmed) return;
+    const target = this.pendingDeleteClient;
+    this.deletingClient = true;
+    this.deleteError = '';
+
+    this.adminService.deleteClient(target.id, this.deleteReason).subscribe({
+      next: (res) => {
+        this.deletingClient = false;
+        this.closeDeleteModal();
+        this.feedbackType = 'success';
+        this.feedbackMessage = res.message || `Cliente ${target.full_name} eliminado correctamente.`;
+        this.loadClients();
+      },
+      error: (err) => {
+        this.deletingClient = false;
+        this.deleteError =
+          err.error?.message || 'No se pudo eliminar el perfil del cliente.';
+      },
+    });
   }
 
   toNumber(val: string | number): number {

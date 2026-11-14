@@ -174,6 +174,21 @@ export class AdminService {
     });
   }
 
+  deleteClient(
+    id: string,
+    reason?: string,
+  ): Observable<{ deleted: true; id: string; full_name: string; message: string }> {
+    const qs = reason?.trim() ? `?reason=${encodeURIComponent(reason.trim())}` : '';
+    return this.http.delete<{
+      deleted: true;
+      id: string;
+      full_name: string;
+      message: string;
+    }>(`${getApiBaseUrl()}/clients/${id}${qs}`, {
+      headers: this.getHeaders(),
+    });
+  }
+
   // Gestión de cajas registradoras POS.
   getCashRegisters(companyId?: string, status?: string): Observable<CashRegister[]> {
     const params = new URLSearchParams();
