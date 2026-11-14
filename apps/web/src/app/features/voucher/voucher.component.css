@@ -1,0 +1,143 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.voucher-wrapper {
+  background: var(--white-card);
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-bento);
+  padding: 20px;
+  box-shadow: var(--shadow-bento);
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.voucher-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+  justify-content: center;
+}
+
+.thermal-receipt {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #000000;
+  background: #ffffff;
+  padding: 8px;
+  border: 1px dashed var(--border-strong);
+}
+
+.receipt-header {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.merchant-name {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.bold-title {
+  font-weight: 700;
+  margin-top: 6px;
+  text-decoration: underline;
+}
+
+.receipt-divider {
+  text-align: center;
+  letter-spacing: 1px;
+  margin: 6px 0;
+  overflow: hidden;
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.receipt-line {
+  margin: 2px 0;
+}
+
+.auth-highlight {
+  font-size: 12px;
+}
+
+.bold-amount {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bold-balance {
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--surface-balance);
+  padding: 2px 4px;
+}
+
+.legal-text {
+  font-size: 8.5px;
+  text-align: justify;
+  line-height: 1.25;
+  margin: 8px 0;
+}
+
+.signature-area {
+  margin: 22px 0 14px;
+  text-align: center;
+}
+
+.signature-line {
+  border-top: 1px solid #000000;
+  width: 80%;
+  margin: 0 auto 6px;
+}
+
+.qr-box {
+  text-align: center;
+  margin-top: 8px;
+}
+
+.qr-box canvas {
+  width: 100px !important;
+  height: 100px !important;
+  margin: 0 auto;
+  display: block;
+}
+
+.hash-text {
+  font-size: 8px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.voucher-copy-separator {
+  border-bottom: 2px dashed #000000;
+  margin: 22px 0;
+}
+
+@media print {
+  .voucher-wrapper {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    max-width: none;
+  }
+
+  .thermal-receipt {
+    border: none;
+    padding: 0;
+  }
+
+  .bold-balance {
+    background: transparent;
+  }
+}

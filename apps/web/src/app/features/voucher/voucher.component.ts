@@ -19,11 +19,11 @@ import { VoucherDetails } from '../../core/models';
   template: `
     <div class="voucher-wrapper" *ngIf="voucher">
       <div class="voucher-actions no-print">
-        <button class="ui primary button" (click)="printVoucher()">
-          <i class="print icon"></i> Imprimir Voucher (80mm)
+        <button type="button" class="ui primary button" (click)="printVoucher()">
+          <i class="print icon" aria-hidden="true"></i> Imprimir Voucher (80mm)
         </button>
-        <button class="ui basic button" (click)="close.emit()">
-          <i class="close icon"></i> Cerrar
+        <button type="button" class="ui basic button" (click)="close.emit()">
+          <i class="close icon" aria-hidden="true"></i> Cerrar
         </button>
       </div>
 
@@ -169,125 +169,7 @@ import { VoucherDetails } from '../../core/models';
       </div>
     </div>
   `,
-  styles: [
-    `
-      .voucher-wrapper {
-        background: #FFFFFF;
-        border-radius: 1rem;
-        padding: 1.5rem;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-        max-width: 420px;
-        margin: 0 auto;
-      }
-
-      .voucher-actions {
-        display: flex;
-        gap: 0.75rem;
-        margin-bottom: 1.25rem;
-        justify-content: center;
-      }
-
-      .thermal-receipt {
-        font-family: 'JetBrains Mono', 'Courier New', monospace;
-        font-size: 11px;
-        color: #000000;
-        background: #FFFFFF;
-        padding: 0.5rem;
-        border: 1px dashed #CBD5E1;
-      }
-
-      .receipt-header {
-        text-align: center;
-        margin-bottom: 0.5rem;
-      }
-
-      .merchant-name {
-        font-size: 13px;
-        font-weight: 800;
-        letter-spacing: 0.05em;
-      }
-
-      .bold-title {
-        font-weight: 800;
-        margin-top: 0.35rem;
-        text-decoration: underline;
-      }
-
-      .receipt-divider {
-        text-align: center;
-        letter-spacing: 1px;
-        margin: 0.35rem 0;
-        overflow: hidden;
-      }
-
-      .receipt-row {
-        display: flex;
-        justify-content: space-between;
-        margin: 0.15rem 0;
-      }
-
-      .receipt-line {
-        margin: 0.15rem 0;
-      }
-
-      .auth-highlight {
-        font-size: 12px;
-      }
-
-      .bold-amount {
-        font-size: 13px;
-        font-weight: 800;
-      }
-
-      .bold-balance {
-        font-size: 13px;
-        font-weight: 800;
-        background: #F1F5F9;
-        padding: 0.15rem 0.25rem;
-      }
-
-      .legal-text {
-        font-size: 8.5px;
-        text-align: justify;
-        line-height: 1.2;
-        margin: 0.5rem 0;
-      }
-
-      .signature-area {
-        margin: 1.5rem 0 1rem;
-        text-align: center;
-      }
-
-      .signature-line {
-        border-top: 1px solid #000000;
-        width: 80%;
-        margin: 0 auto 0.35rem;
-      }
-
-      .qr-box {
-        text-align: center;
-        margin-top: 0.5rem;
-      }
-
-      .qr-box canvas {
-        width: 100px !important;
-        height: 100px !important;
-        margin: 0 auto;
-        display: block;
-      }
-
-      .hash-text {
-        font-size: 8px;
-        color: #475569;
-        margin-top: 0.25rem;
-      }
-
-      .voucher-copy-separator {
-        border-bottom: 2px dashed #000000;
-        margin: 1.5rem 0;
-      }
-    `,
-  ],
+  styleUrl: './voucher.component.css',
 })
 export class VoucherComponent implements OnChanges {
   @Input() voucher: VoucherDetails | null = null;
@@ -328,4 +210,3 @@ export class VoucherComponent implements OnChanges {
     }
   }
 }
-
