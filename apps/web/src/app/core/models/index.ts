@@ -44,6 +44,35 @@ export interface UpdateUserPayload {
   is_active?: boolean;
 }
 
+export type CashRegisterStatus = 'OPEN' | 'CLOSED' | 'SUSPENDED';
+
+export interface CashRegister {
+  id: string;
+  company_id: string;
+  terminal_code: string;
+  name: string;
+  location: string;
+  status: CashRegisterStatus;
+  created_at?: string;
+  company?: Company;
+}
+
+export interface CreateCashRegisterPayload {
+  company_id: string;
+  terminal_code: string;
+  name: string;
+  location?: string;
+  status?: CashRegisterStatus;
+}
+
+export interface UpdateCashRegisterPayload {
+  company_id?: string;
+  terminal_code?: string;
+  name?: string;
+  location?: string;
+  status?: CashRegisterStatus;
+}
+
 export interface Company {
   id: string;
   code: string;
@@ -55,13 +84,7 @@ export interface Company {
   is_merchant: boolean;
   status: 'ACTIVE' | 'INACTIVE';
   created_at: string;
-  cash_registers?: Array<{
-    id: string;
-    terminal_code: string;
-    name: string;
-    location: string;
-    status: string;
-  }>;
+  cash_registers?: CashRegister[];
 }
 
 export interface CreateCompanyPayload {
@@ -187,6 +210,7 @@ export interface VoucherDetails {
   external_invoice_number: string;
   created_at: string;
   status: 'APPROVED' | 'VOIDED' | 'REJECTED';
+  transaction_type?: 'PURCHASE_CHARGE' | 'PAYMENT_ABONO' | 'VOID_REVERSAL' | 'LIMIT_ADJUSTMENT';
   amount: string;
   currency: string;
   previous_available_balance: string;

@@ -1,16 +1,22 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
-  ConflictException,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ClientCreditProfile } from '../../database/entities/client-credit-profile.entity';
 import { Company } from '../../database/entities/company.entity';
 import { AuditLog } from '../../database/entities/audit-log.entity';
-import { CreditStatus, UserRole } from '../../common/enums';
+import { CompanyStatus, CreditStatus, UserRole } from '../../common/enums';
 import { CryptoService } from '../../common/crypto/crypto.service';
+import {
+  ConsumptionNotificationResult,
+  WhatsAppNotificationsService,
+} from '../notifications/whatsapp-notifications.service';
 import { CreateClientDto, UpdateClientDto, UpdateClientStatusDto } from './dto/client.dto';
 
 export interface ClientProfileResponse {
@@ -35,6 +41,7 @@ export interface ClientProfileResponse {
   credit_status: CreditStatus;
   status_color_class: 'emerald' | 'amber' | 'red';
   created_at: Date;
+  whatsapp_notification?: ConsumptionNotificationResult;
 }
 
 @Injectable()
@@ -47,7 +54,26 @@ export class ClientsService implements OnModuleInit {
     @InjectRepository(AuditLog)
     private readonly auditRepository: Repository<AuditLog>,
     private readonly cryptoService: CryptoService,
+    @Optional() private readonly whatsappNotifications?: WhatsAppNotificationsService,
   ) {}
+
+  private async validateEmployerCompany(companyId: string): Promise<Company> {
+    const company = await this.companyRepository.findOne({ where: { id: companyId } });
+    if (!company) {
+      throw new NotFoundException('La empresa empleadora seleccionada no existe');
+    }
+    if (!company.is_employer) {
+      throw new BadRequestException(
+        `La empresa '${company.name}' no está configurada como Empresa Empleadora`,
+      );
+    }
+    if (company.status !== CompanyStatus.ACTIVE) {
+      throw new BadRequestException(
+        `La empresa '${company.name}' está inactiva; actívela antes de asociar colaboradores`,
+      );
+    }
+    return company;
+  }
 
   async onModuleInit(): Promise<void> {
     await this.seedDemoClients();
@@ -62,12 +88,24 @@ export class ClientsService implements OnModuleInit {
       gradeLevel?: string;
       classification?: string;
       creditStatus?: CreditStatus;
+      scopedCompanyId?: string | null;
     },
   ): Promise<ClientProfileResponse[]> {
     const qb = this.clientRepository
       .createQueryBuilder('client')
       .leftJoinAndSelect('client.employer_company', 'employer')
       .orderBy('client.created_at', 'DESC');
+
+    if (filters?.scopedCompanyId && userRole !== UserRole.SUPER_ADMIN && userRole !== UserRole.CASHIER) {
+      const assignedComp = await this.companyRepository.findOne({
+        where: { id: filters.scopedCompanyId },
+      });
+      if (assignedComp?.is_employer) {
+        qb.andWhere('client.employer_company_id = :scopedComp', {
+          scopedComp: filters.scopedCompanyId,
+        });
+      }
+    }
 
     if (filters?.search) {
       const term = `%${filters.search.trim()}%`;
@@ -140,8 +178,10 @@ export class ClientsService implements OnModuleInit {
   }
 
   async create(dto: CreateClientDto, userId: string): Promise<ClientProfileResponse> {
+    await this.validateEmployerCompany(dto.employer_company_id);
+
     const existing = await this.clientRepository.findOne({
-      where: [{ national_id: dto.national_id }, { employee_code: dto.employee_code }],
+      where: [{ national_id: dto.national_id.trim() }, { employee_code: dto.employee_code.trim() }],
     });
     if (existing) {
       throw new ConflictException('Ya existe un cliente con esta cédula o código de carnet');
@@ -226,7 +266,10 @@ export class ClientsService implements OnModuleInit {
       client.employee_code = dto.employee_code.trim();
     }
 
-    if (dto.employer_company_id) client.employer_company_id = dto.employer_company_id;
+    if (dto.employer_company_id && dto.employer_company_id !== client.employer_company_id) {
+      await this.validateEmployerCompany(dto.employer_company_id);
+      client.employer_company_id = dto.employer_company_id;
+    }
     if (dto.first_name !== undefined) client.first_name = dto.first_name.trim();
     if (dto.last_name !== undefined) client.last_name = dto.last_name.trim();
     if (dto.job_title !== undefined) client.job_title = dto.job_title.trim();
@@ -245,7 +288,12 @@ export class ClientsService implements OnModuleInit {
     if (dto.approved_limit !== undefined) {
       const newLimit = Number(dto.approved_limit);
       const used = Number(client.used_balance);
-      const newAvailable = Math.max(0, newLimit - used);
+      if (newLimit < used) {
+        throw new BadRequestException(
+          `El límite aprobado (C$ ${newLimit.toFixed(2)}) no puede ser menor al saldo ya consumido (C$ ${used.toFixed(2)})`,
+        );
+      }
+      const newAvailable = Number((newLimit - used).toFixed(2));
       client.approved_limit = newLimit.toFixed(2);
       client.available_balance = newAvailable.toFixed(2);
     }
@@ -298,7 +346,19 @@ export class ClientsService implements OnModuleInit {
     });
     await this.auditRepository.save(audit);
 
-    return this.formatResponse(client, UserRole.CREDIT_MANAGER);
+    const response = this.formatResponse(client, UserRole.CREDIT_MANAGER);
+    if (
+      prevStatus === CreditStatus.PENDING_APPROVAL &&
+      dto.credit_status === CreditStatus.ACTIVE &&
+      this.whatsappNotifications
+    ) {
+      response.whatsapp_notification = await this.whatsappNotifications.notifyCreditLineActivated(
+        client,
+        userId,
+      );
+    }
+
+    return response;
   }
 
   private formatResponse(c: ClientCreditProfile, role: UserRole): ClientProfileResponse {

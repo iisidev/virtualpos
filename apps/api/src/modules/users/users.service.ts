@@ -1,12 +1,15 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
-  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../../database/entities/user.entity';
+import { Company } from '../../database/entities/company.entity';
+import { CompanyStatus, UserRole } from '../../common/enums';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 
 export interface UserResponse {
@@ -27,7 +30,35 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Company)
+    private readonly companyRepository: Repository<Company>,
   ) {}
+
+  private async validateCompanyAssignment(
+    companyId: string | null | undefined,
+    role: UserRole | string,
+  ): Promise<string | null> {
+    if (!companyId) {
+      return null;
+    }
+    const company = await this.companyRepository.findOne({ where: { id: companyId } });
+    if (!company) {
+      throw new NotFoundException('La empresa asignada no existe');
+    }
+    if (role === UserRole.CASHIER) {
+      if (!company.is_merchant) {
+        throw new BadRequestException(
+          `La empresa '${company.name}' no está habilitada como Comercio Afiliado (POS) para asignar cajeros`,
+        );
+      }
+      if (company.status !== CompanyStatus.ACTIVE) {
+        throw new BadRequestException(
+          `La empresa '${company.name}' está inactiva; actívela antes de asignar cajeros`,
+        );
+      }
+    }
+    return company.id;
+  }
 
   async findAll(): Promise<UserResponse[]> {
     const users = await this.userRepository.find({
@@ -56,6 +87,8 @@ export class UsersService {
       throw new ConflictException(`El usuario '${dto.username}' ya existe`);
     }
 
+    const validCompanyId = await this.validateCompanyAssignment(dto.company_id, dto.role);
+
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(dto.password, salt);
 
@@ -64,7 +97,7 @@ export class UsersService {
       password_hash,
       full_name: dto.full_name.trim(),
       role: dto.role,
-      company_id: dto.company_id || null,
+      company_id: validCompanyId,
       is_active: dto.is_active !== undefined ? dto.is_active : true,
       created_by: createdBy || 'ADMIN',
     });
@@ -96,7 +129,11 @@ export class UsersService {
 
     if (dto.full_name !== undefined) user.full_name = dto.full_name.trim();
     if (dto.role !== undefined) user.role = dto.role;
-    if (dto.company_id !== undefined) user.company_id = dto.company_id || null;
+    if (dto.company_id !== undefined) {
+      user.company_id = await this.validateCompanyAssignment(dto.company_id, user.role);
+    } else if (dto.role !== undefined && user.company_id) {
+      await this.validateCompanyAssignment(user.company_id, user.role);
+    }
     if (dto.is_active !== undefined) user.is_active = dto.is_active;
 
     await this.userRepository.save(user);

@@ -16,16 +16,31 @@ export interface CreditRequestItem {
   reviewed_at?: string | null;
   review_notes?: string | null;
   client?: {
+    id?: string;
     first_name: string;
     last_name: string;
     national_id: string;
     employee_code: string;
-    employer_company?: { name: string };
+    whatsapp_phone?: string;
+    employer_company_id?: string;
+    employer_company?: { id?: string; name: string };
   };
   reviewer?: {
     full_name: string;
     username: string;
   };
+  whatsapp_notification?: {
+    attempted: boolean;
+    ok: boolean;
+    phone: string | null;
+    error?: string;
+  };
+}
+
+export interface CreateCreditRequestPayload {
+  client_id: string;
+  requested_limit: number;
+  reason: string;
 }
 
 @Injectable({
@@ -45,15 +60,42 @@ export class CreditRequestsService {
     });
   }
 
-  findAll(status?: string): Observable<CreditRequestItem[]> {
-    const url = status ? `${this.baseUrl}?status=${status}` : this.baseUrl;
+  findAll(filters?: {
+    status?: string;
+    employerCompanyId?: string;
+    search?: string;
+  }): Observable<CreditRequestItem[]> {
+    const params = new URLSearchParams();
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.employerCompanyId) params.set('employerCompanyId', filters.employerCompanyId);
+    if (filters?.search) params.set('search', filters.search);
+    const qs = params.toString();
+    const url = qs ? `${this.baseUrl}?${qs}` : this.baseUrl;
     return this.http.get<CreditRequestItem[]>(url, { headers: this.getHeaders() });
   }
 
-  review(id: string, action: 'APPROVE' | 'REJECT', notes: string): Observable<CreditRequestItem> {
+  create(payload: CreateCreditRequestPayload): Observable<CreditRequestItem> {
+    return this.http.post<CreditRequestItem>(this.baseUrl, payload, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  review(
+    id: string,
+    action: 'APPROVE' | 'REJECT',
+    notes: string,
+    approvedLimit?: number,
+  ): Observable<CreditRequestItem> {
+    const body: { action: 'APPROVE' | 'REJECT'; review_notes: string; approved_limit?: number } = {
+      action,
+      review_notes: notes,
+    };
+    if (action === 'APPROVE' && approvedLimit !== undefined && approvedLimit > 0) {
+      body.approved_limit = approvedLimit;
+    }
     return this.http.patch<CreditRequestItem>(
       `${this.baseUrl}/${id}/review`,
-      { action, review_notes: notes },
+      body,
       { headers: this.getHeaders() },
     );
   }

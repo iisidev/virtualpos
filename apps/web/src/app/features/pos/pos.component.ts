@@ -11,13 +11,17 @@ import { FormsModule } from '@angular/forms';
 import { PosService } from '../../core/services/pos.service';
 import { AuthService } from '../../core/services/auth.service';
 import {
-  ClientProfile,
-  VoucherDetails,
   AvailabilityTicket,
+  CashRegister,
+  CashRegisterStatus,
+  ClientProfile,
+  Company,
+  VoucherDetails,
 } from '../../core/models';
 import { VoucherComponent } from '../voucher/voucher.component';
 import { StatusBannerComponent } from '../../shared/status-banner.component';
 import {
+  formatCashRegisterStatusLabel,
   formatCreditStatusLabel,
   formatTransactionStatusLabel,
 } from '../../shared/ui-labels';
@@ -30,15 +34,105 @@ import {
     <div class="pos-container">
       <!-- Cinta superior de terminal y atajos de teclado -->
       <div class="pos-ribbon bento-card">
-        <div class="ribbon-title">
-          <i class="cash register icon" aria-hidden="true"></i>
-          <h1>Terminal de caja: {{ activeTerminal?.terminal_code || 'POS-CAJA-01' }}{{ activeTerminal?.name ? ' - ' + activeTerminal.name : '' }}</h1>
+        <div class="ribbon-title-wrap">
+          <div class="ribbon-title">
+            <i class="cash register icon" aria-hidden="true"></i>
+            <h1>
+              {{ activeTerminal?.company?.name || activeMerchantName || 'Terminal POS' }}
+              &middot;
+              {{ activeTerminal?.terminal_code || 'SIN CAJA' }}
+            </h1>
+            <span
+              *ngIf="activeTerminal"
+              class="badge-status"
+              [ngClass]="{
+                active: activeTerminal.status === 'OPEN',
+                amber: activeTerminal.status === 'CLOSED',
+                blocked: activeTerminal.status === 'SUSPENDED'
+              }"
+            >
+              {{ formatCashRegisterStatusLabel(activeTerminal.status) }}
+            </span>
+          </div>
+
+          <div class="terminal-selectors">
+            <div class="terminal-select-field">
+              <label for="pos-company-select">Comercio:</label>
+              <select
+                id="pos-company-select"
+                class="ui dropdown terminal-select"
+                [(ngModel)]="selectedCompanyId"
+                (ngModelChange)="onCompanyChange($event)"
+                [disabled]="isCompanyLocked"
+              >
+                <option value="" *ngIf="!isCompanyLocked && merchantCompanies.length > 1">
+                  Todos los comercios
+                </option>
+                <option *ngFor="let comp of merchantCompanies" [value]="comp.id">
+                  {{ comp.name }} ({{ comp.code }})
+                </option>
+              </select>
+            </div>
+
+            <div class="terminal-select-field">
+              <label for="pos-register-select">Caja:</label>
+              <select
+                id="pos-register-select"
+                class="ui dropdown terminal-select ui-mono"
+                [(ngModel)]="selectedRegisterId"
+                (ngModelChange)="onRegisterChange($event)"
+                [disabled]="filteredRegisters.length === 0"
+              >
+                <option *ngIf="filteredRegisters.length === 0" value="">
+                  Sin cajas configuradas
+                </option>
+                <option *ngFor="let reg of filteredRegisters" [value]="reg.id">
+                  {{ reg.terminal_code }} - {{ reg.name }} ({{ formatCashRegisterStatusLabel(reg.status) }})
+                </option>
+              </select>
+            </div>
+
+            <button
+              *ngIf="activeTerminal && activeTerminal.status !== 'SUSPENDED'"
+              type="button"
+              class="ui tiny button"
+              [class.positive]="activeTerminal.status === 'CLOSED'"
+              [class.basic]="activeTerminal.status === 'OPEN'"
+              [disabled]="togglingTerminal"
+              (click)="toggleTerminalShift()"
+            >
+              <i
+                class="icon"
+                [ngClass]="togglingTerminal ? 'spinner loading' : (activeTerminal.status === 'OPEN' ? 'pause' : 'play')"
+                aria-hidden="true"
+              ></i>
+              {{ activeTerminal.status === 'OPEN' ? 'Cerrar Turno' : 'Abrir Caja' }}
+            </button>
+          </div>
         </div>
+
         <div class="ribbon-shortcuts">
           <span class="shortcut-item"><span class="key-badge">F2</span> Escanear Cédula / Carnet</span>
           <span class="shortcut-item"><span class="key-badge">F4</span> Procesar Cobro</span>
           <span class="shortcut-item"><span class="key-badge">F8</span> Reimprimir Último Voucher</span>
         </div>
+      </div>
+
+      <div
+        *ngIf="!activeTerminal || activeTerminal.status !== 'OPEN'"
+        class="ui warning message pos-terminal-warning"
+        role="status"
+      >
+        <i class="exclamation triangle icon" aria-hidden="true"></i>
+        <span *ngIf="!activeTerminal">
+          Este comercio no tiene cajas POS configuradas. Solicite a un administrador crear una en el Panel Admin.
+        </span>
+        <span *ngIf="activeTerminal && activeTerminal.status === 'CLOSED'">
+          La caja <strong>{{ activeTerminal.terminal_code }}</strong> ({{ activeTerminal.company?.name || activeMerchantName }}) se encuentra <strong>Cerrada</strong>. Presione "Abrir Caja" para habilitar los cobros.
+        </span>
+        <span *ngIf="activeTerminal && activeTerminal.status === 'SUSPENDED'">
+          La caja <strong>{{ activeTerminal.terminal_code }}</strong> se encuentra <strong>Suspendida</strong> administrativamente.
+        </span>
       </div>
 
       <app-status-banner
@@ -260,6 +354,7 @@ import {
                   <th>Hora</th>
                   <th>Autorización</th>
                   <th>Voucher</th>
+                  <th>Comercio / Caja</th>
                   <th>Cliente</th>
                   <th>Factura ERP</th>
                   <th class="ui-amount-cell">Monto</th>
@@ -273,6 +368,10 @@ import {
                   <td class="ui-mono">{{ tx.created_at | date: 'HH:mm:ss' }}</td>
                   <td class="ui-mono"><strong>{{ tx.authorization_code }}</strong></td>
                   <td class="ui-mono">{{ tx.voucher_number }}</td>
+                  <td>
+                    <div>{{ tx.merchant.name }}</div>
+                    <span class="ui-mono sub-terminal-label">{{ tx.terminal.terminal_code }}</span>
+                  </td>
                   <td>{{ tx.client.full_name }}</td>
                   <td class="ui-mono">{{ tx.external_invoice_number }}</td>
                   <td class="ui-amount-cell"><strong>C$ {{ formatNumber(tx.amount) }}</strong></td>
@@ -300,7 +399,7 @@ import {
                     </button>
                     <button
                       type="button"
-                      *ngIf="tx.status === 'APPROVED'"
+                      *ngIf="tx.status === 'APPROVED' && (!tx.transaction_type || tx.transaction_type === 'PURCHASE_CHARGE')"
                       class="ui mini icon basic red button"
                       (click)="promptVoid(tx)"
                       aria-label="Anular Transacción"
@@ -311,8 +410,8 @@ import {
                   </td>
                 </tr>
                 <tr *ngIf="recentTransactions.length === 0">
-                  <td colspan="9" class="pos-table-empty">
-                    No hay transacciones registradas en el turno actual.
+                  <td colspan="10" class="pos-table-empty">
+                    No hay transacciones registradas en la caja seleccionada.
                   </td>
                 </tr>
               </tbody>
@@ -426,15 +525,24 @@ export class PosComponent implements OnInit {
 
   private readonly posService = inject(PosService);
   private readonly auth = inject(AuthService);
+  readonly formatCashRegisterStatusLabel = formatCashRegisterStatusLabel;
   readonly formatCreditStatusLabel = formatCreditStatusLabel;
   readonly formatTransactionStatusLabel = formatTransactionStatusLabel;
+
+  private readonly registerStorageKey = 'pos_selected_register_id';
+  private readonly companyStorageKey = 'pos_selected_company_id';
 
   searchQuery = '001-121092-0000X'; // Default demo client
   client: ClientProfile | null = null;
   searching = false;
   searchError = '';
 
-  activeTerminal: any = null;
+  merchantCompanies: Company[] = [];
+  cashRegisters: CashRegister[] = [];
+  selectedCompanyId = '';
+  selectedRegisterId = '';
+  activeTerminal: CashRegister | null = null;
+  togglingTerminal = false;
 
   chargeAmount: number | null = null;
   externalInvoice = 'FACT-2026-001';
@@ -456,21 +564,124 @@ export class PosComponent implements OnInit {
   feedbackMessage = '';
   feedbackType: 'success' | 'error' | 'info' = 'success';
 
+  get isCompanyLocked(): boolean {
+    return Boolean(this.auth.currentUser()?.company_id);
+  }
+
+  get activeMerchantName(): string {
+    if (!this.selectedCompanyId) return '';
+    return this.merchantCompanies.find((c) => c.id === this.selectedCompanyId)?.name || '';
+  }
+
+  get filteredRegisters(): CashRegister[] {
+    if (!this.selectedCompanyId) return this.cashRegisters;
+    return this.cashRegisters.filter((r) => r.company_id === this.selectedCompanyId);
+  }
+
   ngOnInit(): void {
-    this.loadActiveTerminal();
+    this.loadTerminalContext();
     this.onSearchClient();
+  }
+
+  loadTerminalContext(): void {
+    const assignedCompanyId = this.auth.currentUser()?.company_id || '';
+
+    this.posService.getMerchantCompanies().subscribe({
+      next: (merchants) => {
+        this.merchantCompanies = assignedCompanyId
+          ? merchants.filter((m) => m.id === assignedCompanyId)
+          : merchants;
+      },
+      error: () => {
+        this.merchantCompanies = [];
+      },
+    });
+
+    this.posService.getCashRegisters(assignedCompanyId || undefined, true).subscribe({
+      next: (registers) => {
+        this.cashRegisters = registers;
+        const savedRegId = localStorage.getItem(this.registerStorageKey) || '';
+        const savedCompId = assignedCompanyId || localStorage.getItem(this.companyStorageKey) || '';
+
+        const preferredReg =
+          registers.find((r) => r.id === savedRegId) ||
+          registers.find((r) => (!savedCompId || r.company_id === savedCompId) && r.status === 'OPEN') ||
+          registers.find((r) => r.status === 'OPEN') ||
+          registers[0] ||
+          null;
+
+        if (preferredReg) {
+          this.selectedCompanyId = assignedCompanyId || preferredReg.company_id;
+          this.selectedRegisterId = preferredReg.id;
+          this.activeTerminal = preferredReg;
+        } else {
+          this.selectedCompanyId = assignedCompanyId || '';
+          this.selectedRegisterId = '';
+          this.activeTerminal = null;
+        }
+        this.loadRecentTransactions();
+      },
+      error: (err) => {
+        console.warn('No se pudieron cargar las cajas registradoras:', err);
+        this.loadRecentTransactions();
+      },
+    });
+  }
+
+  onCompanyChange(companyId: string): void {
+    this.selectedCompanyId = companyId;
+    if (companyId) {
+      localStorage.setItem(this.companyStorageKey, companyId);
+    } else {
+      localStorage.removeItem(this.companyStorageKey);
+    }
+
+    const candidates = this.filteredRegisters;
+    const nextReg = candidates.find((r) => r.status === 'OPEN') || candidates[0] || null;
+    this.setActiveTerminal(nextReg);
+  }
+
+  onRegisterChange(registerId: string): void {
+    const found = this.cashRegisters.find((r) => r.id === registerId) || null;
+    if (found && !this.selectedCompanyId) {
+      this.selectedCompanyId = found.company_id;
+    }
+    this.setActiveTerminal(found);
+  }
+
+  private setActiveTerminal(reg: CashRegister | null): void {
+    this.activeTerminal = reg;
+    this.selectedRegisterId = reg?.id || '';
+    if (reg) {
+      localStorage.setItem(this.registerStorageKey, reg.id);
+    } else {
+      localStorage.removeItem(this.registerStorageKey);
+    }
     this.loadRecentTransactions();
   }
 
-  loadActiveTerminal(): void {
-    this.posService.getCashRegisters().subscribe({
-      next: (registers) => {
-        if (registers && registers.length > 0) {
-          this.activeTerminal = registers[0];
-        }
+  toggleTerminalShift(): void {
+    if (!this.activeTerminal || this.activeTerminal.status === 'SUSPENDED') return;
+    const nextStatus: CashRegisterStatus =
+      this.activeTerminal.status === 'OPEN' ? 'CLOSED' : 'OPEN';
+    this.togglingTerminal = true;
+    this.checkoutError = '';
+
+    this.posService.updateCashRegisterStatus(this.activeTerminal.id, nextStatus).subscribe({
+      next: (updated) => {
+        this.togglingTerminal = false;
+        this.cashRegisters = this.cashRegisters.map((r) => (r.id === updated.id ? updated : r));
+        this.activeTerminal = updated;
+        this.feedbackType = 'success';
+        this.feedbackMessage =
+          updated.status === 'OPEN'
+            ? `Caja ${updated.terminal_code} (${updated.company?.name || ''}) abierta para cobros.`
+            : `Turno cerrado en caja ${updated.terminal_code}.`;
       },
       error: (err) => {
-        console.warn('Terminal de caja no cargada automáticamente:', err);
+        this.togglingTerminal = false;
+        this.feedbackType = 'error';
+        this.feedbackMessage = err.error?.message || 'No se pudo cambiar el estado de la caja';
       },
     });
   }
@@ -528,6 +739,7 @@ export class PosComponent implements OnInit {
   }
 
   canProcessCharge(): boolean {
+    if (!this.activeTerminal || this.activeTerminal.status !== 'OPEN') return false;
     if (!this.client || this.client.credit_status !== 'ACTIVE') return false;
     if (!this.chargeAmount || this.chargeAmount <= 0) return false;
     if (this.chargeAmount > Number(this.client.available_balance)) return false;
@@ -536,27 +748,19 @@ export class PosComponent implements OnInit {
   }
 
   onProcessCharge(): void {
-    if (!this.client || !this.canProcessCharge()) return;
+    if (!this.client || !this.activeTerminal || !this.canProcessCharge()) return;
     this.processing = true;
     this.checkoutError = '';
 
-    const payload: any = {
+    const payload = {
       client_id: this.client.id,
+      cash_register_id: this.activeTerminal.id,
+      merchant_company_id: this.activeTerminal.company_id,
       amount: Number(this.chargeAmount),
       external_invoice_number: this.externalInvoice.trim(),
       idempotency_key: `pos_charge_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       notes: this.chargeNotes,
     };
-
-    if (this.activeTerminal?.id) {
-      payload.cash_register_id = this.activeTerminal.id;
-      payload.merchant_company_id =
-        this.activeTerminal.company_id ||
-        this.auth.currentUser()?.company_id ||
-        this.client.employer_company_id;
-    } else if (this.auth.currentUser()?.company_id) {
-      payload.merchant_company_id = this.auth.currentUser()?.company_id;
-    }
 
     this.posService.checkout(payload).subscribe({
       next: (voucher) => {
@@ -603,7 +807,12 @@ export class PosComponent implements OnInit {
   loadRecentTransactions(): void {
     this.loadingRecent = true;
     this.recentError = '';
-    this.posService.getRecentTransactions().subscribe({
+    this.posService
+      .getRecentTransactions({
+        cashRegisterId: this.activeTerminal?.id,
+        merchantCompanyId: !this.activeTerminal && this.selectedCompanyId ? this.selectedCompanyId : undefined,
+      })
+      .subscribe({
       next: (txs) => {
         this.recentTransactions = txs;
         this.loadingRecent = false;

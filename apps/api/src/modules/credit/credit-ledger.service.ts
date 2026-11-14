@@ -1,12 +1,13 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
   ConflictException,
   Logger,
   Optional,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import {
@@ -16,10 +17,18 @@ import {
   CashRegister,
 } from '../../database/entities';
 import {
+  CashRegisterStatus,
+  CompanyStatus,
   CreditStatus,
   TransactionStatus,
   TransactionType,
+  UserRole,
 } from '../../common/enums';
+
+export interface LedgerActorScope {
+  role?: UserRole;
+  companyId?: string | null;
+}
 import { CryptoService } from '../../common/crypto/crypto.service';
 import { RedisLockService } from './redis-lock.service';
 import { ChargeRequestDto } from './dto/charge-request.dto';
@@ -36,6 +45,7 @@ export interface VoucherDetails {
   external_invoice_number: string;
   created_at: Date;
   status: TransactionStatus;
+  transaction_type?: TransactionType;
   amount: string;
   currency: string;
   previous_available_balance: string;
@@ -96,17 +106,92 @@ export class CreditLedgerService {
     return `${start}******${end}`;
   }
 
+  private async resolveChargeCashRegister(
+    manager: EntityManager,
+    dto: ChargeRequestDto,
+    actorScope?: LedgerActorScope,
+  ): Promise<CashRegister> {
+    const scopedCompanyId =
+      actorScope?.role === UserRole.CASHIER && actorScope?.companyId
+        ? actorScope.companyId
+        : null;
+
+    let cashRegister: CashRegister | null = null;
+    if (dto.cash_register_id) {
+      cashRegister = await manager.findOne(CashRegister, {
+        where: { id: dto.cash_register_id },
+        relations: { company: true },
+      });
+      if (!cashRegister) {
+        throw new NotFoundException('La caja registradora seleccionada no existe');
+      }
+    } else {
+      const preferredCompanyId = scopedCompanyId || dto.merchant_company_id;
+      const qb = manager
+        .createQueryBuilder(CashRegister, 'cr')
+        .leftJoinAndSelect('cr.company', 'company')
+        .where('cr.status = :openStatus', { openStatus: CashRegisterStatus.OPEN })
+        .andWhere('company.status = :activeStatus', { activeStatus: CompanyStatus.ACTIVE })
+        .andWhere('company.is_merchant = true');
+
+      if (preferredCompanyId) {
+        qb.andWhere('cr.company_id = :preferredCompanyId', { preferredCompanyId });
+      }
+
+      cashRegister = await qb.orderBy('cr.terminal_code', 'ASC').getOne();
+      if (!cashRegister) {
+        throw new BadRequestException(
+          'No existe ninguna caja registradora abierta y habilitada para el comercio',
+        );
+      }
+    }
+
+    if (scopedCompanyId && cashRegister.company_id !== scopedCompanyId) {
+      throw new ForbiddenException(
+        'No tiene permiso para operar una caja registradora perteneciente a otro comercio',
+      );
+    }
+
+    if (dto.merchant_company_id && dto.merchant_company_id !== cashRegister.company_id) {
+      throw new BadRequestException(
+        'La caja registradora seleccionada no pertenece al comercio indicado',
+      );
+    }
+
+    if (!cashRegister.company || !cashRegister.company.is_merchant) {
+      throw new BadRequestException(
+        'La empresa asociada a la caja no está habilitada como Comercio Afiliado (POS)',
+      );
+    }
+
+    if (cashRegister.company.status !== CompanyStatus.ACTIVE) {
+      throw new BadRequestException(
+        `El comercio '${cashRegister.company.name}' se encuentra inactivo`,
+      );
+    }
+
+    if (cashRegister.status !== CashRegisterStatus.OPEN) {
+      throw new BadRequestException(
+        `La caja ${cashRegister.terminal_code} está ${cashRegister.status === CashRegisterStatus.SUSPENDED ? 'suspendida' : 'cerrada'}; ábrala antes de procesar cobros`,
+      );
+    }
+
+    return cashRegister;
+  }
+
   /**
    * Executes a purchase charge with STRICT transactional integrity:
    * 1. Redis distributed lock & Idempotency check
    * 2. QueryRunner pessimistic_write row lock
-   * 3. Balance verification
-   * 4. Ledger entry creation with SHA-256 audit hash
+   * 3. Multi-company & Open CashRegister validation
+   * 4. Balance verification
+   * 5. Ledger entry creation with SHA-256 audit hash
    */
   async executeCharge(
     dto: ChargeRequestDto,
     cashierUserId: string,
     ipAddress?: string,
+    actorScope?: LedgerActorScope,
   ): Promise<VoucherDetails> {
     // 1. Idempotency Check
     const isNewRequest = await this.redisLockService.registerIdempotency(dto.idempotency_key);
@@ -148,9 +233,11 @@ export class CreditLedgerService {
       }
 
       if (client.credit_status !== CreditStatus.ACTIVE) {
-        throw new BadRequestException(
-          `La línea de crédito no está activa para compras. Estado actual: ${client.credit_status}`,
-        );
+        const statusHint =
+          client.credit_status === CreditStatus.PENDING_APPROVAL
+            ? 'La línea de crédito del cliente aún está pendiente de aprobación.'
+            : `La línea de crédito no está activa para compras. Estado actual: ${client.credit_status}`;
+        throw new BadRequestException(statusHint);
       }
 
       // Check PIN if defined
@@ -175,6 +262,13 @@ export class CreditLedgerService {
         );
       }
 
+      const cashRegister = await this.resolveChargeCashRegister(
+        queryRunner.manager,
+        dto,
+        actorScope,
+      );
+      const merchantCompanyId = cashRegister.company_id;
+
       // Financial Calculation
       const newAvailable = Number((availableBalance - chargeAmount).toFixed(2));
       const newUsed = Number((usedBalance + chargeAmount).toFixed(2));
@@ -182,28 +276,6 @@ export class CreditLedgerService {
       client.available_balance = newAvailable.toFixed(2);
       client.used_balance = newUsed.toFixed(2);
       await queryRunner.manager.save(ClientCreditProfile, client);
-
-      // Resolve Cash Register (with fallback to default open register)
-      let cashRegister: CashRegister | null = null;
-      if (dto.cash_register_id) {
-        cashRegister = await queryRunner.manager.findOne(CashRegister, {
-          where: { id: dto.cash_register_id },
-          relations: { company: true },
-        });
-      }
-
-      if (!cashRegister) {
-        cashRegister = await queryRunner.manager.findOne(CashRegister, {
-          relations: { company: true },
-        });
-      }
-
-      if (!cashRegister) {
-        throw new BadRequestException('No existe ninguna terminal de caja registrada en el sistema');
-      }
-
-      const merchantCompanyId =
-        dto.merchant_company_id || cashRegister.company_id || client.employer_company_id;
 
       // Voucher counter per cash register
       const count = await queryRunner.manager.count(CreditTransaction, {
@@ -354,7 +426,7 @@ export class CreditLedgerService {
         idempotency_key: dto.idempotency_key,
         client_id: client.id,
         merchant_company_id: client.employer_company_id,
-        cash_register_id: client.employer_company_id, // Reference ID
+        cash_register_id: null,
         cashier_user_id: performedByUserId,
         external_invoice_number: dto.reference_number,
         transaction_type: TransactionType.PAYMENT_ABONO,
@@ -404,6 +476,7 @@ export class CreditLedgerService {
     dto: VoidRequestDto,
     cashierUserId: string,
     ipAddress?: string,
+    actorScope?: LedgerActorScope,
   ): Promise<CreditTransaction> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -417,6 +490,16 @@ export class CreditLedgerService {
 
       if (!originalTx) {
         throw new NotFoundException(`Transacción ${transactionId} no encontrada`);
+      }
+
+      if (
+        actorScope?.role === UserRole.CASHIER &&
+        actorScope?.companyId &&
+        originalTx.merchant_company_id !== actorScope.companyId
+      ) {
+        throw new ForbiddenException(
+          'No tiene permiso para anular transacciones pertenecientes a otro comercio',
+        );
       }
 
       if (originalTx.status === TransactionStatus.VOIDED) {
@@ -511,6 +594,83 @@ export class CreditLedgerService {
   }
 
   /**
+   * Shared transactional limit-adjustment helper so both manual /adjust-limit
+   * and CreditRequestsService approvals share identical ledger/audit logic.
+   */
+  async applyLimitAdjustmentWithManager(
+    manager: EntityManager,
+    client: ClientCreditProfile,
+    newLimitInput: number,
+    reason: string,
+    performedByUserId: string,
+    ipAddress?: string,
+  ): Promise<ClientCreditProfile> {
+    const prevLimit = Number(client.approved_limit);
+    const prevStatus = client.credit_status;
+    const usedBalance = Number(client.used_balance);
+    const newLimit = Number(newLimitInput);
+
+    if (!Number.isFinite(newLimit) || newLimit <= 0) {
+      throw new BadRequestException('El nuevo límite debe ser mayor a cero');
+    }
+    if (newLimit < usedBalance) {
+      throw new BadRequestException(
+        `El nuevo límite (C$ ${newLimit.toFixed(2)}) no puede ser menor al saldo ya consumido (C$ ${usedBalance.toFixed(2)})`,
+      );
+    }
+
+    const newAvailable = Number((newLimit - usedBalance).toFixed(2));
+    client.approved_limit = newLimit.toFixed(2);
+    client.available_balance = newAvailable.toFixed(2);
+    if (client.credit_status === CreditStatus.PENDING_APPROVAL) {
+      client.credit_status = CreditStatus.ACTIVE;
+    }
+    const updated = await manager.save(ClientCreditProfile, client);
+
+    const now = new Date();
+    const authCode = this.generateAuthCode();
+    const sigHash = this.cryptoService.generateTransactionSignature(client.id, newLimit, now, authCode);
+
+    const tx = manager.create(CreditTransaction, {
+      authorization_code: authCode,
+      voucher_number: `LIM-${now.getTime()}`,
+      idempotency_key: `limit_adj_${client.id}_${now.getTime()}_${crypto.randomInt(100, 999)}`,
+      client_id: client.id,
+      merchant_company_id: client.employer_company_id,
+      cash_register_id: null,
+      cashier_user_id: performedByUserId,
+      external_invoice_number: 'ADJ-LIMITE',
+      transaction_type: TransactionType.LIMIT_ADJUSTMENT,
+      amount: Math.abs(newLimit - prevLimit).toFixed(2),
+      previous_available_balance: Math.max(0, prevLimit - usedBalance).toFixed(2),
+      new_available_balance: newAvailable.toFixed(2),
+      status: TransactionStatus.APPROVED,
+      signature_hash: sigHash,
+      notes: `Ajuste de límite de C$ ${prevLimit.toFixed(2)} a C$ ${newLimit.toFixed(2)}. Motivo: ${reason}`,
+      created_at: now,
+    });
+    await manager.save(CreditTransaction, tx);
+
+    const audit = manager.create(AuditLog, {
+      action: 'CREDIT_LIMIT_ADJUSTED',
+      entity_type: 'ClientCreditProfile',
+      entity_id: client.id,
+      previous_data: JSON.stringify({ approved_limit: prevLimit, credit_status: prevStatus }),
+      new_data: JSON.stringify({
+        approved_limit: newLimit,
+        credit_status: updated.credit_status,
+        reason,
+      }),
+      performed_by_user_id: performedByUserId,
+      ip_address: ipAddress || null,
+      created_at: now,
+    });
+    await manager.save(AuditLog, audit);
+
+    return updated;
+  }
+
+  /**
    * Adjusts credit limit with transactional recalculation and audit
    */
   async adjustLimit(
@@ -532,51 +692,14 @@ export class CreditLedgerService {
         throw new NotFoundException('Cliente no encontrado');
       }
 
-      const prevLimit = Number(client.approved_limit);
-      const usedBalance = Number(client.used_balance);
-      const newLimit = Number(dto.new_limit);
-
-      const newAvailable = Number((newLimit - usedBalance).toFixed(2));
-
-      client.approved_limit = newLimit.toFixed(2);
-      client.available_balance = newAvailable.toFixed(2);
-      const updated = await queryRunner.manager.save(ClientCreditProfile, client);
-
-      const now = new Date();
-      const authCode = this.generateAuthCode();
-      const sigHash = this.cryptoService.generateTransactionSignature(client.id, newLimit, now, authCode);
-
-      const tx = queryRunner.manager.create(CreditTransaction, {
-        authorization_code: authCode,
-        voucher_number: `LIM-${now.getTime()}`,
-        idempotency_key: `limit_adj_${client.id}_${now.getTime()}`,
-        client_id: client.id,
-        merchant_company_id: client.employer_company_id,
-        cash_register_id: client.employer_company_id,
-        cashier_user_id: performedByUserId,
-        external_invoice_number: 'ADJ-LIMITE',
-        transaction_type: TransactionType.LIMIT_ADJUSTMENT,
-        amount: Math.abs(newLimit - prevLimit).toFixed(2),
-        previous_available_balance: (prevLimit - usedBalance).toFixed(2),
-        new_available_balance: newAvailable.toFixed(2),
-        status: TransactionStatus.APPROVED,
-        signature_hash: sigHash,
-        notes: `Ajuste de límite de C$ ${prevLimit} a C$ ${newLimit}. Motivo: ${dto.reason}`,
-        created_at: now,
-      });
-      await queryRunner.manager.save(CreditTransaction, tx);
-
-      const audit = queryRunner.manager.create(AuditLog, {
-        action: 'CREDIT_LIMIT_ADJUSTED',
-        entity_type: 'ClientCreditProfile',
-        entity_id: client.id,
-        previous_data: JSON.stringify({ approved_limit: prevLimit }),
-        new_data: JSON.stringify({ approved_limit: newLimit, reason: dto.reason }),
-        performed_by_user_id: performedByUserId,
-        ip_address: ipAddress || null,
-        created_at: now,
-      });
-      await queryRunner.manager.save(AuditLog, audit);
+      const updated = await this.applyLimitAdjustmentWithManager(
+        queryRunner.manager,
+        client,
+        Number(dto.new_limit),
+        dto.reason,
+        performedByUserId,
+        ipAddress,
+      );
 
       await queryRunner.commitTransaction();
       return updated;
@@ -612,6 +735,7 @@ export class CreditLedgerService {
       external_invoice_number: tx.external_invoice_number,
       created_at: tx.created_at,
       status: tx.status,
+      transaction_type: tx.transaction_type,
       amount: tx.amount,
       currency: 'C$',
       previous_available_balance: tx.previous_available_balance,

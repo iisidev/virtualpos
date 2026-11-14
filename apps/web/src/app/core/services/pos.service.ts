@@ -3,9 +3,12 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AuthService } from './auth.service';
 import {
-  ClientProfile,
-  VoucherDetails,
   AvailabilityTicket,
+  CashRegister,
+  CashRegisterStatus,
+  ClientProfile,
+  Company,
+  VoucherDetails,
 } from '../models';
 import { getApiBaseUrl } from '../config/api.config';
 
@@ -67,9 +70,18 @@ export class PosService {
     );
   }
 
-  getRecentTransactions(cashRegisterId?: string): Observable<VoucherDetails[]> {
-    const url = cashRegisterId
-      ? `${this.baseUrl}/credit/transactions?cashRegisterId=${cashRegisterId}`
+  getRecentTransactions(filters?: {
+    cashRegisterId?: string;
+    merchantCompanyId?: string;
+    limit?: number;
+  }): Observable<VoucherDetails[]> {
+    const params = new URLSearchParams();
+    if (filters?.cashRegisterId) params.set('cashRegisterId', filters.cashRegisterId);
+    if (filters?.merchantCompanyId) params.set('merchantCompanyId', filters.merchantCompanyId);
+    if (filters?.limit) params.set('limit', String(filters.limit));
+    const qs = params.toString();
+    const url = qs
+      ? `${this.baseUrl}/credit/transactions?${qs}`
       : `${this.baseUrl}/credit/transactions`;
     return this.http.get<VoucherDetails[]>(url, { headers: this.getHeaders() });
   }
@@ -82,11 +94,29 @@ export class PosService {
     );
   }
 
-  getCashRegisters(companyId?: string): Observable<any[]> {
-    const url = companyId
-      ? `${this.baseUrl}/cash-registers?companyId=${companyId}`
+  getMerchantCompanies(): Observable<Company[]> {
+    return this.http.get<Company[]>(`${this.baseUrl}/companies/merchants`, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  getCashRegisters(companyId?: string, onlyActiveCompanies = true): Observable<CashRegister[]> {
+    const params = new URLSearchParams();
+    if (companyId) params.set('companyId', companyId);
+    if (onlyActiveCompanies) params.set('onlyActiveCompanies', 'true');
+    const qs = params.toString();
+    const url = qs
+      ? `${this.baseUrl}/cash-registers?${qs}`
       : `${this.baseUrl}/cash-registers`;
-    return this.http.get<any[]>(url, { headers: this.getHeaders() });
+    return this.http.get<CashRegister[]>(url, { headers: this.getHeaders() });
+  }
+
+  updateCashRegisterStatus(id: string, status: CashRegisterStatus): Observable<CashRegister> {
+    return this.http.patch<CashRegister>(
+      `${this.baseUrl}/cash-registers/${id}/status`,
+      { status },
+      { headers: this.getHeaders() },
+    );
   }
 }
 

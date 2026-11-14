@@ -9,11 +9,26 @@ const CREDIT_STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'Activo',
   FROZEN: 'Congelado',
   BLOCKED: 'Bloqueado',
+  PENDING_APPROVAL: 'Pendiente de Aprobación',
+};
+
+const CASH_REGISTER_STATUS_LABELS: Record<string, string> = {
+  OPEN: 'Abierta',
+  CLOSED: 'Cerrada',
+  SUSPENDED: 'Suspendida',
 };
 
 const TRANSACTION_STATUS_LABELS: Record<string, string> = {
   APPROVED: 'Aprobado',
   VOIDED: 'Anulado',
+  REJECTED: 'Rechazado',
+};
+
+const TRANSACTION_TYPE_LABELS: Record<string, string> = {
+  PURCHASE_CHARGE: 'Compra POS',
+  PAYMENT_ABONO: 'Abono / Planilla',
+  VOID_REVERSAL: 'Anulación',
+  LIMIT_ADJUSTMENT: 'Ajuste de Límite',
 };
 
 const REQUEST_STATUS_LABELS: Record<string, string> = {
@@ -84,4 +99,14 @@ export function formatCatalogCategoryLabel(category?: string | null): string {
 export function formatChannelLabel(channel?: string | null): string {
   if (!channel) return '';
   return CHANNEL_LABELS[channel] ?? channel;
+}
+
+export function formatCashRegisterStatusLabel(status?: string | null): string {
+  if (!status) return '';
+  return CASH_REGISTER_STATUS_LABELS[status] ?? status;
+}
+
+export function formatTransactionTypeLabel(type?: string | null): string {
+  if (!type) return '';
+  return TRANSACTION_TYPE_LABELS[type] ?? type;
 }

@@ -17,6 +17,10 @@ import {
   ClientProfile,
   CreateClientPayload,
   UpdateClientPayload,
+  CashRegister,
+  CashRegisterStatus,
+  CreateCashRegisterPayload,
+  UpdateCashRegisterPayload,
 } from '../models';
 
 @Injectable({
@@ -126,6 +130,20 @@ export class AdminService {
   }
 
   // Gestión de clientes.
+  getClients(filters?: {
+    search?: string;
+    employerCompanyId?: string;
+    creditStatus?: string;
+  }): Observable<ClientProfile[]> {
+    const params = new URLSearchParams();
+    if (filters?.search) params.set('search', filters.search);
+    if (filters?.employerCompanyId) params.set('employerCompanyId', filters.employerCompanyId);
+    if (filters?.creditStatus) params.set('creditStatus', filters.creditStatus);
+    const qs = params.toString();
+    const url = qs ? `${getApiBaseUrl()}/clients?${qs}` : `${getApiBaseUrl()}/clients`;
+    return this.http.get<ClientProfile[]>(url, { headers: this.getHeaders() });
+  }
+
   createClient(payload: CreateClientPayload): Observable<ClientProfile> {
     return this.http.post<ClientProfile>(`${getApiBaseUrl()}/clients`, payload, {
       headers: this.getHeaders(),
@@ -136,6 +154,58 @@ export class AdminService {
     return this.http.put<ClientProfile>(`${getApiBaseUrl()}/clients/${id}`, payload, {
       headers: this.getHeaders(),
     });
+  }
+
+  updateClientStatus(
+    id: string,
+    payload: { credit_status: string; reason: string },
+  ): Observable<ClientProfile & { whatsapp_notification?: { attempted: boolean; ok: boolean; phone: string | null; error?: string } }> {
+    return this.http.patch<
+      ClientProfile & {
+        whatsapp_notification?: {
+          attempted: boolean;
+          ok: boolean;
+          phone: string | null;
+          error?: string;
+        };
+      }
+    >(`${getApiBaseUrl()}/clients/${id}/status`, payload, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  // Gestión de cajas registradoras POS.
+  getCashRegisters(companyId?: string, status?: string): Observable<CashRegister[]> {
+    const params = new URLSearchParams();
+    if (companyId) params.set('companyId', companyId);
+    if (status) params.set('status', status);
+    const qs = params.toString();
+    const url = qs
+      ? `${getApiBaseUrl()}/cash-registers?${qs}`
+      : `${getApiBaseUrl()}/cash-registers`;
+    return this.http.get<CashRegister[]>(url, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  createCashRegister(payload: CreateCashRegisterPayload): Observable<CashRegister> {
+    return this.http.post<CashRegister>(`${getApiBaseUrl()}/cash-registers`, payload, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  updateCashRegister(id: string, payload: UpdateCashRegisterPayload): Observable<CashRegister> {
+    return this.http.put<CashRegister>(`${getApiBaseUrl()}/cash-registers/${id}`, payload, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  updateCashRegisterStatus(id: string, status: CashRegisterStatus): Observable<CashRegister> {
+    return this.http.patch<CashRegister>(
+      `${getApiBaseUrl()}/cash-registers/${id}/status`,
+      { status },
+      { headers: this.getHeaders() },
+    );
   }
 }
 

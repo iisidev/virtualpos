@@ -345,6 +345,43 @@
   margin-bottom: 14px;
 }
 
+.register-link-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  transition:
+    background-color 150ms,
+    border-color 150ms;
+}
+
+.register-link-btn:hover {
+  border-color: var(--action-surface);
+  color: var(--action-surface);
+}
+
+.register-link-btn > i.icon {
+  margin: 0;
+}
+
+.register-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: 1 1 320px;
+  align-items: center;
+}
+
+.register-company-filter {
+  min-width: 220px;
+  max-width: 320px;
+}
+
 @container workspace (max-width: 760px) {
   .tab-btn,
   .subtab-btn {

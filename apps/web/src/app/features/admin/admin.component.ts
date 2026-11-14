@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { AdminService } from '../../core/services/admin.service';
 import { StatusBannerComponent } from '../../shared/status-banner.component';
 import {
+  formatCashRegisterStatusLabel,
   formatCatalogCategoryLabel,
   formatCompanyStatusLabel,
   formatRoleLabel,
@@ -13,6 +14,10 @@ import {
   Company,
   CreateCompanyPayload,
   UpdateCompanyPayload,
+  CashRegister,
+  CashRegisterStatus,
+  CreateCashRegisterPayload,
+  UpdateCashRegisterPayload,
   AdminUser,
   CreateUserPayload,
   UpdateUserPayload,
@@ -24,7 +29,7 @@ import {
 } from '../../core/models';
 import { WhatsappNotifyComponent } from '../whatsapp-console/whatsapp-notify.component';
 
-type AdminTab = 'companies' | 'users' | 'catalogs' | 'notifications';
+type AdminTab = 'companies' | 'registers' | 'users' | 'catalogs' | 'notifications';
 
 @Component({
   selector: 'app-admin',
@@ -50,6 +55,16 @@ type AdminTab = 'companies' | 'users' | 'catalogs' | 'notifications';
             (click)="setTab('companies')"
           >
             <i class="building icon" aria-hidden="true"></i> Empresas ({{ companies.length }})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab === 'registers'"
+            class="tab-btn"
+            [class.active]="activeTab === 'registers'"
+            (click)="setTab('registers')"
+          >
+            <i class="cash register icon" aria-hidden="true"></i> Cajas POS ({{ cashRegisters.length }})
           </button>
           <button
             type="button"
@@ -165,7 +180,15 @@ type AdminTab = 'companies' | 'users' | 'catalogs' | 'notifications';
                     <span *ngIf="c.is_merchant" class="badge badge-merchant">Comercio</span>
                   </td>
                   <td>
-                    <span class="badge badge-subtle">{{ c.cash_registers?.length || 0 }} caja(s)</span>
+                    <button
+                      type="button"
+                      class="badge badge-subtle register-link-btn"
+                      (click)="openCompanyRegisters(c)"
+                      [title]="'Administrar cajas de ' + c.name"
+                    >
+                      <i class="cash register icon" aria-hidden="true"></i>
+                      {{ c.cash_registers?.length || 0 }} caja(s)
+                    </button>
                   </td>
                   <td>
                     <span class="badge-status" [class.active]="c.status === 'ACTIVE'" [class.blocked]="c.status !== 'ACTIVE'">
@@ -207,6 +230,169 @@ type AdminTab = 'companies' | 'users' | 'catalogs' | 'notifications';
                       (click)="searchCompany = ''"
                     >
                       Limpiar búsqueda
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pestaña de cajas registradoras POS -->
+      <div *ngIf="activeTab === 'registers'" class="tab-content">
+        <div class="bento-grid stats-grid">
+          <div class="bento-card stat-item">
+            <span class="stat-label">Total Cajas POS</span>
+            <span class="stat-value">{{ cashRegisters.length }}</span>
+          </div>
+          <div class="bento-card stat-item">
+            <span class="stat-label">Cajas Abiertas</span>
+            <span class="stat-value text-accent">{{ countRegistersByStatus('OPEN') }}</span>
+          </div>
+          <div class="bento-card stat-item">
+            <span class="stat-label">Cajas Cerradas</span>
+            <span class="stat-value">{{ countRegistersByStatus('CLOSED') }}</span>
+          </div>
+          <div class="bento-card stat-item">
+            <span class="stat-label">Suspendidas</span>
+            <span class="stat-value">{{ countRegistersByStatus('SUSPENDED') }}</span>
+          </div>
+        </div>
+
+        <div class="bento-card action-bar">
+          <div class="register-filters">
+            <div class="search-box">
+              <i class="search icon" aria-hidden="true"></i>
+              <label for="admin-search-register" class="sr-only">Buscar caja por código, nombre, ubicación o comercio</label>
+              <input
+                id="admin-search-register"
+                type="text"
+                placeholder="Buscar terminal, caja o comercio..."
+                [(ngModel)]="searchRegister"
+              />
+            </div>
+
+            <select
+              id="admin-filter-register-company"
+              aria-label="Filtrar cajas por comercio"
+              class="form-input register-company-filter"
+              [(ngModel)]="filterRegisterCompanyId"
+            >
+              <option value="">Todos los Comercios</option>
+              <option *ngFor="let comp of merchantCompanies" [value]="comp.id">
+                {{ comp.name }} ({{ comp.code }})
+              </option>
+            </select>
+          </div>
+
+          <button type="button" class="ui-btn primary-btn" (click)="openRegisterModal()">
+            <i class="plus icon" aria-hidden="true"></i> Registrar Caja POS
+          </button>
+        </div>
+
+        <div class="bento-card table-card">
+          <div *ngIf="loadingRegisters && cashRegisters.length === 0" class="ui-state-box" role="status">
+            <i class="spinner loading icon" aria-hidden="true"></i>
+            <span>Cargando cajas registradoras...</span>
+          </div>
+          <div *ngIf="errorRegisters && cashRegisters.length === 0" class="ui-banner error" role="alert">
+            <span class="ui-banner-msg">
+              <i class="exclamation triangle icon" aria-hidden="true"></i> {{ errorRegisters }}
+            </span>
+            <button type="button" class="ui-btn primary-btn" (click)="loadCashRegisters()">Reintentar</button>
+          </div>
+          <div *ngIf="!errorRegisters && (cashRegisters.length > 0 || !loadingRegisters)" class="table-responsive">
+            <table class="ui-table">
+              <thead>
+                <tr>
+                  <th>Código Terminal</th>
+                  <th>Caja / Ubicación</th>
+                  <th>Empresa / Comercio Asociado</th>
+                  <th>Estado</th>
+                  <th>Fecha Alta</th>
+                  <th class="text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let cr of filteredRegisters">
+                  <td><strong class="ui-mono">{{ cr.terminal_code }}</strong></td>
+                  <td>
+                    <div class="main-name">{{ cr.name }}</div>
+                    <div class="sub-detail">{{ cr.location || 'Sin ubicación especificada' }}</div>
+                  </td>
+                  <td>
+                    <div class="main-name">{{ cr.company?.name || 'Comercio' }}</div>
+                    <div class="sub-detail">
+                      <span class="ui-mono">{{ cr.company?.code || '' }}</span>
+                      <span *ngIf="cr.company && cr.company.status !== 'ACTIVE'" class="badge-status blocked">
+                        Comercio Inactivo
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      class="badge-status"
+                      [class.active]="cr.status === 'OPEN'"
+                      [class.amber]="cr.status === 'CLOSED'"
+                      [class.blocked]="cr.status === 'SUSPENDED'"
+                    >
+                      {{ formatCashRegisterStatusLabel(cr.status) }}
+                    </span>
+                  </td>
+                  <td class="ui-mono">{{ cr.created_at | date: 'dd/MM/yyyy' }}</td>
+                  <td class="text-right">
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      (click)="openRegisterModal(cr)"
+                      title="Editar Caja"
+                      [attr.aria-label]="'Editar caja ' + cr.terminal_code"
+                    >
+                      <i class="edit outline icon" aria-hidden="true"></i>
+                    </button>
+                    <button
+                      type="button"
+                      *ngIf="cr.status !== 'OPEN'"
+                      class="icon-btn"
+                      title="Abrir Caja"
+                      [attr.aria-label]="'Abrir caja ' + cr.terminal_code"
+                      (click)="requestRegisterStatusChange(cr, 'OPEN')"
+                    >
+                      <i class="play circle outline icon ui-credit-ok" aria-hidden="true"></i>
+                    </button>
+                    <button
+                      type="button"
+                      *ngIf="cr.status === 'OPEN'"
+                      class="icon-btn"
+                      title="Cerrar Caja"
+                      [attr.aria-label]="'Cerrar caja ' + cr.terminal_code"
+                      (click)="requestRegisterStatusChange(cr, 'CLOSED')"
+                    >
+                      <i class="pause circle outline icon ui-credit-warning" aria-hidden="true"></i>
+                    </button>
+                    <button
+                      type="button"
+                      *ngIf="cr.status !== 'SUSPENDED'"
+                      class="icon-btn"
+                      title="Suspender Caja"
+                      [attr.aria-label]="'Suspender caja ' + cr.terminal_code"
+                      (click)="requestRegisterStatusChange(cr, 'SUSPENDED')"
+                    >
+                      <i class="ban icon ui-credit-danger" aria-hidden="true"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr *ngIf="filteredRegisters.length === 0">
+                  <td colspan="6" class="empty-state">
+                    <div>No se encontraron cajas POS con los filtros seleccionados.</div>
+                    <button
+                      *ngIf="searchRegister || filterRegisterCompanyId"
+                      type="button"
+                      class="ui-btn secondary-btn empty-reset-btn"
+                      (click)="searchRegister = ''; filterRegisterCompanyId = ''"
+                    >
+                      Limpiar filtros
                     </button>
                   </td>
                 </tr>
@@ -660,7 +846,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs' | 'notifications';
                 <select id="user-company" class="form-input" [(ngModel)]="userForm.company_id" name="company_id">
                   <option [ngValue]="null">-- Acceso Global (Sin restricción) --</option>
                   <option *ngFor="let comp of companies" [value]="comp.id">
-                    {{ comp.name }} ({{ comp.code }})
+                    {{ comp.name }} ({{ comp.code }}) — {{ describeCompanyRole(comp) }}{{ comp.status !== 'ACTIVE' ? ' [INACTIVA]' : '' }}
                   </option>
                 </select>
               </div>
@@ -779,6 +965,117 @@ type AdminTab = 'companies' | 'users' | 'catalogs' | 'notifications';
         </div>
       </div>
 
+      <!-- Modal caja registradora POS -->
+      <div
+        *ngIf="showRegisterModal"
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="register-modal-title"
+        (click)="!savingRegister && closeRegisterModal()"
+      >
+        <div class="bento-card modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2 id="register-modal-title">
+              {{ editingRegisterId ? 'Editar Caja POS' : 'Registrar Nueva Caja POS' }}
+            </h2>
+            <button type="button" class="close-btn" aria-label="Cerrar ventana" (click)="closeRegisterModal()">
+              &times;
+            </button>
+          </div>
+
+          <div *ngIf="modalError" class="ui-banner error modal-error-banner" role="alert">
+            <span class="ui-banner-msg"><i class="exclamation circle icon" aria-hidden="true"></i> {{ modalError }}</span>
+          </div>
+
+          <form (ngSubmit)="saveRegister()" class="modal-form">
+            <div class="form-group">
+              <label for="register-company">Empresa / Comercio Afiliado *</label>
+              <select
+                id="register-company"
+                class="form-input"
+                [(ngModel)]="registerForm.company_id"
+                name="company_id"
+                required
+              >
+                <option value="" disabled>Seleccione comercio afiliado...</option>
+                <option *ngFor="let comp of merchantCompanies" [value]="comp.id">
+                  {{ comp.name }} ({{ comp.code }}){{ comp.status !== 'ACTIVE' ? ' [INACTIVA]' : '' }}
+                </option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="register-terminal-code">Código de Terminal *</label>
+                <input
+                  id="register-terminal-code"
+                  type="text"
+                  class="form-input ui-mono"
+                  [(ngModel)]="registerForm.terminal_code"
+                  name="terminal_code"
+                  placeholder="ej. POS-CAJA-02"
+                  required
+                />
+              </div>
+              <div class="form-group flex-1">
+                <label for="register-status">Estado Operativo</label>
+                <select
+                  id="register-status"
+                  class="form-input"
+                  [(ngModel)]="registerForm.status"
+                  name="status"
+                >
+                  <option value="OPEN">Abierta (Operativa)</option>
+                  <option value="CLOSED">Cerrada (Fuera de turno)</option>
+                  <option value="SUSPENDED">Suspendida</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="register-name">Nombre Descriptivo de Caja *</label>
+              <input
+                id="register-name"
+                type="text"
+                class="form-input"
+                [(ngModel)]="registerForm.name"
+                name="name"
+                placeholder="ej. Caja #2 - Sucursal Norte"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="register-location">Ubicación Física / Sucursal</label>
+              <input
+                id="register-location"
+                type="text"
+                class="form-input"
+                [(ngModel)]="registerForm.location"
+                name="location"
+                placeholder="ej. Módulo Central - Planta Baja"
+              />
+            </div>
+
+            <div class="modal-actions">
+              <button
+                type="button"
+                class="ui-btn secondary-btn"
+                (click)="closeRegisterModal()"
+                [disabled]="savingRegister"
+              >
+                Cancelar
+              </button>
+              <button type="submit" class="ui-btn primary-btn" [disabled]="savingRegister">
+                <i class="save icon" *ngIf="!savingRegister" aria-hidden="true"></i>
+                {{ savingRegister ? 'Guardando...' : (editingRegisterId ? 'Actualizar Caja' : 'Guardar Caja') }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <!-- Modal confirmar cambio de estado -->
       <div
         *ngIf="pendingStatusConfirm"
@@ -813,6 +1110,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs' | 'notifications';
 })
 export class AdminComponent implements OnInit {
   private readonly adminService = inject(AdminService);
+  readonly formatCashRegisterStatusLabel = formatCashRegisterStatusLabel;
   readonly formatCatalogCategoryLabel = formatCatalogCategoryLabel;
   readonly formatCompanyStatusLabel = formatCompanyStatusLabel;
   readonly formatRoleLabel = formatRoleLabel;
@@ -821,19 +1119,24 @@ export class AdminComponent implements OnInit {
 
   // Data
   companies: Company[] = [];
+  cashRegisters: CashRegister[] = [];
   users: AdminUser[] = [];
   catalogs: CatalogItem[] = [];
 
   // Search/Filters
   searchCompany = '';
+  searchRegister = '';
+  filterRegisterCompanyId = '';
   searchUser = '';
   selectedCatalogCategory: string = '';
 
   // Modals state
   loadingCompanies = false;
+  loadingRegisters = false;
   loadingUsers = false;
   loadingCatalogs = false;
   errorCompanies = '';
+  errorRegisters = '';
   errorUsers = '';
   errorCatalogs = '';
   feedbackMessage = '';
@@ -841,8 +1144,9 @@ export class AdminComponent implements OnInit {
   modalError = '';
 
   pendingStatusConfirm: {
-    kind: 'company' | 'user' | 'catalog';
+    kind: 'company' | 'user' | 'catalog' | 'register';
     id: string;
+    nextRegisterStatus?: CashRegisterStatus;
     summary: string;
   } | null = null;
   confirmingStatus = false;
@@ -858,6 +1162,17 @@ export class AdminComponent implements OnInit {
     phone: '',
     is_employer: true,
     is_merchant: false,
+  };
+
+  showRegisterModal = false;
+  editingRegisterId: string | null = null;
+  savingRegister = false;
+  registerForm: CreateCashRegisterPayload = {
+    company_id: '',
+    terminal_code: '',
+    name: '',
+    location: '',
+    status: 'CLOSED',
   };
 
   showUserModal = false;
@@ -884,6 +1199,7 @@ export class AdminComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadCompanies();
+    this.loadCashRegisters();
     this.loadUsers();
     this.loadCatalogs();
   }
@@ -894,6 +1210,8 @@ export class AdminComponent implements OnInit {
       this.closeStatusConfirm();
     } else if (this.showCompanyModal && !this.savingCompany) {
       this.closeCompanyModal();
+    } else if (this.showRegisterModal && !this.savingRegister) {
+      this.closeRegisterModal();
     } else if (this.showUserModal && !this.savingUser) {
       this.closeUserModal();
     } else if (this.showCatalogModal && !this.savingCatalog) {
@@ -926,6 +1244,162 @@ export class AdminComponent implements OnInit {
 
   get merchantCount(): number {
     return this.companies.filter((c) => c.is_merchant).length;
+  }
+
+  get merchantCompanies(): Company[] {
+    return this.companies.filter((c) => c.is_merchant);
+  }
+
+  describeCompanyRole(comp: Company): string {
+    if (comp.is_employer && comp.is_merchant) return 'Empleadora + Comercio';
+    if (comp.is_merchant) return 'Comercio POS';
+    if (comp.is_employer) return 'Empleadora';
+    return 'General';
+  }
+
+  openCompanyRegisters(comp: Company): void {
+    this.filterRegisterCompanyId = comp.id;
+    this.searchRegister = '';
+    this.activeTab = 'registers';
+  }
+
+  loadCashRegisters(): void {
+    this.loadingRegisters = true;
+    this.errorRegisters = '';
+    this.adminService.getCashRegisters().subscribe({
+      next: (data) => {
+        this.cashRegisters = data;
+        this.loadingRegisters = false;
+      },
+      error: (err) => {
+        this.loadingRegisters = false;
+        this.errorRegisters = err.error?.message || 'Error cargando cajas registradoras.';
+      },
+    });
+  }
+
+  countRegistersByStatus(status: CashRegisterStatus): number {
+    return this.cashRegisters.filter((r) => r.status === status).length;
+  }
+
+  get filteredRegisters(): CashRegister[] {
+    const term = this.searchRegister.toLowerCase().trim();
+    return this.cashRegisters.filter((cr) => {
+      if (this.filterRegisterCompanyId && cr.company_id !== this.filterRegisterCompanyId) {
+        return false;
+      }
+      if (!term) return true;
+      return (
+        cr.terminal_code.toLowerCase().includes(term) ||
+        cr.name.toLowerCase().includes(term) ||
+        (cr.location || '').toLowerCase().includes(term) ||
+        (cr.company?.name || '').toLowerCase().includes(term) ||
+        (cr.company?.code || '').toLowerCase().includes(term)
+      );
+    });
+  }
+
+  openRegisterModal(reg?: CashRegister): void {
+    if (reg) {
+      this.editingRegisterId = reg.id;
+      this.registerForm = {
+        company_id: reg.company_id,
+        terminal_code: reg.terminal_code,
+        name: reg.name,
+        location: reg.location,
+        status: reg.status,
+      };
+    } else {
+      this.editingRegisterId = null;
+      const defaultMerchant =
+        this.merchantCompanies.find((c) => c.id === this.filterRegisterCompanyId) ||
+        this.merchantCompanies.find((c) => c.status === 'ACTIVE') ||
+        this.merchantCompanies[0];
+      this.registerForm = {
+        company_id: defaultMerchant ? defaultMerchant.id : '',
+        terminal_code: '',
+        name: '',
+        location: '',
+        status: 'CLOSED',
+      };
+    }
+    this.modalError = '';
+    this.showRegisterModal = true;
+  }
+
+  closeRegisterModal(): void {
+    this.showRegisterModal = false;
+    this.editingRegisterId = null;
+    this.modalError = '';
+  }
+
+  saveRegister(): void {
+    if (
+      !this.registerForm.company_id ||
+      !this.registerForm.terminal_code?.trim() ||
+      !this.registerForm.name?.trim()
+    ) {
+      this.modalError = 'Empresa comercio, código de terminal y nombre de caja son obligatorios (*).';
+      return;
+    }
+
+    this.savingRegister = true;
+    this.modalError = '';
+
+    if (this.editingRegisterId) {
+      const payload: UpdateCashRegisterPayload = {
+        company_id: this.registerForm.company_id,
+        terminal_code: this.registerForm.terminal_code.trim(),
+        name: this.registerForm.name.trim(),
+        location: this.registerForm.location?.trim() || '',
+        status: this.registerForm.status,
+      };
+      this.adminService.updateCashRegister(this.editingRegisterId, payload).subscribe({
+        next: () => {
+          this.savingRegister = false;
+          this.closeRegisterModal();
+          this.feedbackType = 'success';
+          this.feedbackMessage = 'Caja registradora actualizada correctamente.';
+          this.loadCashRegisters();
+          this.loadCompanies();
+        },
+        error: (err) => {
+          this.savingRegister = false;
+          this.modalError = err.error?.message || 'Error al actualizar la caja registradora';
+        },
+      });
+    } else {
+      const payload: CreateCashRegisterPayload = {
+        company_id: this.registerForm.company_id,
+        terminal_code: this.registerForm.terminal_code.trim(),
+        name: this.registerForm.name.trim(),
+        location: this.registerForm.location?.trim() || '',
+        status: this.registerForm.status,
+      };
+      this.adminService.createCashRegister(payload).subscribe({
+        next: () => {
+          this.savingRegister = false;
+          this.closeRegisterModal();
+          this.feedbackType = 'success';
+          this.feedbackMessage = 'Caja registradora registrada y vinculada al comercio.';
+          this.loadCashRegisters();
+          this.loadCompanies();
+        },
+        error: (err) => {
+          this.savingRegister = false;
+          this.modalError = err.error?.message || 'Error al registrar caja POS';
+        },
+      });
+    }
+  }
+
+  requestRegisterStatusChange(reg: CashRegister, nextStatus: CashRegisterStatus): void {
+    this.pendingStatusConfirm = {
+      kind: 'register',
+      id: reg.id,
+      nextRegisterStatus: nextStatus,
+      summary: `¿Desea cambiar el estado de la caja ${reg.terminal_code} (${reg.company?.name || ''}) a ${formatCashRegisterStatusLabel(nextStatus)}?`,
+    };
   }
 
   get filteredCompanies(): Company[] {
@@ -989,6 +1463,7 @@ export class AdminComponent implements OnInit {
           this.feedbackType = 'success';
           this.feedbackMessage = 'Empresa actualizada correctamente.';
           this.loadCompanies();
+          this.loadCashRegisters();
         },
         error: (err) => {
           this.savingCompany = false;
@@ -1100,6 +1575,14 @@ export class AdminComponent implements OnInit {
     if (!this.editingUserId && !this.userForm.password) {
       this.modalError = 'La contraseña es requerida para nuevos usuarios.';
       return;
+    }
+    if (this.userForm.role === UserRole.CASHIER && this.userForm.company_id) {
+      const assigned = this.companies.find((c) => c.id === this.userForm.company_id);
+      if (assigned && (!assigned.is_merchant || assigned.status !== 'ACTIVE')) {
+        this.modalError =
+          'Un Cajero POS asignado a una empresa debe pertenecer a un Comercio Afiliado activo.';
+        return;
+      }
     }
 
     this.savingUser = true;
@@ -1282,7 +1765,7 @@ export class AdminComponent implements OnInit {
 
   executeStatusToggle(): void {
     if (!this.pendingStatusConfirm) return;
-    const { kind, id } = this.pendingStatusConfirm;
+    const { kind, id, nextRegisterStatus } = this.pendingStatusConfirm;
     this.confirmingStatus = true;
 
     const req$: Observable<unknown> =
@@ -1290,7 +1773,9 @@ export class AdminComponent implements OnInit {
         ? this.adminService.toggleCompanyStatus(id)
         : kind === 'user'
           ? this.adminService.toggleUserStatus(id)
-          : this.adminService.toggleCatalogStatus(id);
+          : kind === 'register'
+            ? this.adminService.updateCashRegisterStatus(id, nextRegisterStatus || 'CLOSED')
+            : this.adminService.toggleCatalogStatus(id);
 
     req$.subscribe({
       next: () => {
@@ -1298,9 +1783,17 @@ export class AdminComponent implements OnInit {
         this.closeStatusConfirm();
         this.feedbackType = 'success';
         this.feedbackMessage = 'Estado actualizado correctamente.';
-        if (kind === 'company') this.loadCompanies();
-        else if (kind === 'user') this.loadUsers();
-        else this.loadCatalogs();
+        if (kind === 'company') {
+          this.loadCompanies();
+          this.loadCashRegisters();
+        } else if (kind === 'register') {
+          this.loadCashRegisters();
+          this.loadCompanies();
+        } else if (kind === 'user') {
+          this.loadUsers();
+        } else {
+          this.loadCatalogs();
+        }
       },
       error: (err: { error?: { message?: string } }) => {
         this.confirmingStatus = false;

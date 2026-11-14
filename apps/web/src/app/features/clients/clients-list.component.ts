@@ -1,9 +1,8 @@
 import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { AuthService } from '../../core/services/auth.service';
 import { AdminService } from '../../core/services/admin.service';
+import { CreditRequestsService } from '../../core/services/credit-requests.service';
 import {
   ClientProfile,
   Company,
@@ -12,7 +11,6 @@ import {
   CreateClientPayload,
   UpdateClientPayload,
 } from '../../core/models';
-import { getApiBaseUrl } from '../../core/config/api.config';
 import { StatusBannerComponent } from '../../shared/status-banner.component';
 import { formatCreditStatusLabel } from '../../shared/ui-labels';
 
@@ -61,7 +59,7 @@ import { formatCreditStatusLabel } from '../../shared/ui-labels';
           <label for="client-filter-company">Empresa Empleadora:</label>
           <select id="client-filter-company" class="ui dropdown select-box" [(ngModel)]="filterCompany" (change)="loadClients()">
             <option value="">Todas las Empresas</option>
-            <option *ngFor="let c of companies" [value]="c.id">{{ c.name }}</option>
+            <option *ngFor="let c of employerCompanies" [value]="c.id">{{ c.name }}</option>
           </select>
         </div>
 
@@ -81,6 +79,7 @@ import { formatCreditStatusLabel } from '../../shared/ui-labels';
           <select id="client-filter-status" class="ui dropdown select-box" [(ngModel)]="filterStatus" (change)="loadClients()">
             <option value="">Todos</option>
             <option value="ACTIVE">ACTIVO</option>
+            <option value="PENDING_APPROVAL">PENDIENTE DE APROBACIÓN</option>
             <option value="FROZEN">CONGELADO</option>
             <option value="BLOCKED">BLOQUEADO</option>
           </select>
@@ -153,8 +152,8 @@ import { formatCreditStatusLabel } from '../../shared/ui-labels';
                     class="badge-status"
                     [ngClass]="{
                       active: c.credit_status === 'ACTIVE' && c.status_color_class !== 'amber',
-                      amber: c.status_color_class === 'amber',
-                      blocked: c.credit_status !== 'ACTIVE'
+                      amber: c.status_color_class === 'amber' || c.credit_status === 'PENDING_APPROVAL',
+                      blocked: c.credit_status === 'BLOCKED' || c.credit_status === 'FROZEN'
                     }"
                   >
                     {{ formatCreditStatusLabel(c.credit_status) }}
@@ -173,16 +172,36 @@ import { formatCreditStatusLabel } from '../../shared/ui-labels';
                   <button
                     type="button"
                     *ngIf="c.credit_status === 'ACTIVE'"
+                    class="icon-btn"
+                    (click)="openIncreaseRequestModal(c)"
+                    title="Solicitar Aumento de Límite"
+                    [attr.aria-label]="'Solicitar aumento de crédito para ' + c.full_name"
+                  >
+                    <i class="chartline icon" aria-hidden="true"></i>
+                  </button>
+                  <button
+                    type="button"
+                    *ngIf="c.credit_status === 'PENDING_APPROVAL'"
+                    class="icon-btn success"
+                    (click)="toggleStatus(c, 'ACTIVE')"
+                    title="Aprobar y Activar Línea de Crédito"
+                    [attr.aria-label]="'Aprobar crédito de ' + c.full_name"
+                  >
+                    <i class="check circle icon" aria-hidden="true"></i>
+                  </button>
+                  <button
+                    type="button"
+                    *ngIf="c.credit_status === 'ACTIVE' || c.credit_status === 'PENDING_APPROVAL'"
                     class="icon-btn danger"
                     (click)="toggleStatus(c, 'BLOCKED')"
-                    title="Bloquear Línea de Crédito"
+                    [title]="c.credit_status === 'PENDING_APPROVAL' ? 'Rechazar / Bloquear Línea' : 'Bloquear Línea de Crédito'"
                     [attr.aria-label]="'Bloquear línea de crédito de ' + c.full_name"
                   >
                     <i class="lock icon" aria-hidden="true"></i>
                   </button>
                   <button
                     type="button"
-                    *ngIf="c.credit_status !== 'ACTIVE'"
+                    *ngIf="c.credit_status === 'BLOCKED' || c.credit_status === 'FROZEN'"
                     class="icon-btn success"
                     (click)="toggleStatus(c, 'ACTIVE')"
                     title="Reactivar Línea de Crédito"
@@ -294,7 +313,7 @@ import { formatCreditStatusLabel } from '../../shared/ui-labels';
                 <label for="client-employer-company">Empresa Empleadora *</label>
                 <select id="client-employer-company" class="form-input" [(ngModel)]="clientForm.employer_company_id" name="employer_company_id" required>
                   <option value="" disabled>Seleccione empresa...</option>
-                  <option *ngFor="let c of companies" [value]="c.id">
+                  <option *ngFor="let c of employerCompanies" [value]="c.id">
                     {{ c.name }} ({{ c.code }})
                   </option>
                 </select>
@@ -388,6 +407,20 @@ import { formatCreditStatusLabel } from '../../shared/ui-labels';
               </div>
             </div>
 
+            <!-- Row 7: Estado Inicial -->
+            <div class="form-group" *ngIf="!editingClientId">
+              <label for="client-initial-status">Estado de Aprobación de Crédito</label>
+              <select
+                id="client-initial-status"
+                class="form-input"
+                [(ngModel)]="clientForm.credit_status"
+                name="credit_status"
+              >
+                <option value="ACTIVE">Activo (Aprobación inmediata)</option>
+                <option value="PENDING_APPROVAL">Pendiente de Aprobación (Enviar a Comité)</option>
+              </select>
+            </div>
+
             <div class="modal-actions">
               <button type="button" class="ui-btn secondary-btn" (click)="closeModal()" [disabled]="saving">
                 Cancelar
@@ -401,7 +434,72 @@ import { formatCreditStatusLabel } from '../../shared/ui-labels';
         </div>
       </div>
 
-      <!-- Modal cambio de estado -->
+      <!-- Modal solicitar aumento de crédito -->
+      <div
+        *ngIf="requestTargetClient"
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="client-increase-modal-title"
+        (click)="!creatingIncrease && closeIncreaseRequestModal()"
+      >
+        <div class="bento-card modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2 id="client-increase-modal-title">Solicitar Aumento de Límite de Crédito</h2>
+            <button type="button" class="close-btn" aria-label="Cerrar ventana" (click)="closeIncreaseRequestModal()">&times;</button>
+          </div>
+
+          <form (ngSubmit)="submitIncreaseRequest()" class="modal-form">
+            <p class="sub-text">
+              Colaborador: <strong>{{ requestTargetClient.full_name }}</strong> &middot;
+              Límite actual: <strong class="ui-mono">C$ {{ formatNumber(requestTargetClient.approved_limit) }}</strong>
+            </p>
+
+            <div class="form-group">
+              <label for="client-increase-limit">Nuevo Límite Solicitado (C$) *</label>
+              <input
+                id="client-increase-limit"
+                type="number"
+                step="0.01"
+                [min]="toNumber(requestTargetClient.approved_limit) + 1"
+                class="form-input ui-mono"
+                [(ngModel)]="increaseLimit"
+                name="increaseLimit"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="client-increase-reason">Motivo o Justificación *</label>
+              <textarea
+                id="client-increase-reason"
+                rows="3"
+                class="form-input"
+                [(ngModel)]="increaseReason"
+                name="increaseReason"
+                placeholder="Ej. Aumento por antigüedad / solicitud de colaborador..."
+                required
+              ></textarea>
+            </div>
+
+            <div *ngIf="increaseError" class="ui-banner error" role="alert">
+              <span class="ui-banner-msg"><i class="exclamation circle icon" aria-hidden="true"></i> {{ increaseError }}</span>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="ui-btn secondary-btn" (click)="closeIncreaseRequestModal()" [disabled]="creatingIncrease">
+                Cancelar
+              </button>
+              <button type="submit" class="ui-btn primary-btn" [disabled]="creatingIncrease || !increaseReason.trim()">
+                <i class="paper plane icon" *ngIf="!creatingIncrease" aria-hidden="true"></i>
+                {{ creatingIncrease ? 'Enviando...' : 'Enviar a Aprobación' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Modal confirmar cambio de estado -->
       <div
         *ngIf="pendingStatusChange"
         class="modal-backdrop"
@@ -413,7 +511,13 @@ import { formatCreditStatusLabel } from '../../shared/ui-labels';
         <div class="bento-card modal-content" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <h2 id="client-status-modal-title">
-              {{ pendingStatusChange.nextStatus === 'BLOCKED' ? 'Bloquear Línea de Crédito' : 'Reactivar Línea de Crédito' }}
+              {{
+                pendingStatusChange.client.credit_status === 'PENDING_APPROVAL' && pendingStatusChange.nextStatus === 'ACTIVE'
+                  ? 'Aprobar y Activar Crédito'
+                  : pendingStatusChange.nextStatus === 'BLOCKED'
+                    ? 'Bloquear Línea de Crédito'
+                    : 'Reactivar Línea de Crédito'
+              }}
             </h2>
             <button type="button" class="close-btn" aria-label="Cerrar ventana" (click)="closeStatusModal()">&times;</button>
           </div>
@@ -464,13 +568,13 @@ import { formatCreditStatusLabel } from '../../shared/ui-labels';
   styleUrl: './clients-list.component.css',
 })
 export class ClientsListComponent implements OnInit {
-  private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
   private readonly adminService = inject(AdminService);
+  private readonly creditRequestsService = inject(CreditRequestsService);
   readonly formatCreditStatusLabel = formatCreditStatusLabel;
 
   clients: ClientProfile[] = [];
   companies: Company[] = [];
+  employerCompanies: Company[] = [];
   jobTitles: CatalogItem[] = [];
   gradeLevels: CatalogItem[] = [];
 
@@ -495,6 +599,12 @@ export class ClientsListComponent implements OnInit {
   updatingStatus = false;
   statusError = '';
 
+  requestTargetClient: ClientProfile | null = null;
+  increaseLimit = 0;
+  increaseReason = '';
+  creatingIncrease = false;
+  increaseError = '';
+
   clientForm: {
     employer_company_id: string;
     employee_code: string;
@@ -508,6 +618,7 @@ export class ClientsListComponent implements OnInit {
     whatsapp_phone: string;
     birth_date?: string;
     approved_limit: number;
+    credit_status?: 'ACTIVE' | 'FROZEN' | 'BLOCKED' | 'PENDING_APPROVAL';
   } = {
     employer_company_id: '',
     employee_code: '',
@@ -521,6 +632,7 @@ export class ClientsListComponent implements OnInit {
     whatsapp_phone: '',
     birth_date: '',
     approved_limit: 5000,
+    credit_status: 'ACTIVE',
   };
 
   ngOnInit(): void {
@@ -530,7 +642,9 @@ export class ClientsListComponent implements OnInit {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.pendingStatusChange && !this.updatingStatus) {
+    if (this.requestTargetClient && !this.creatingIncrease) {
+      this.closeIncreaseRequestModal();
+    } else if (this.pendingStatusChange && !this.updatingStatus) {
       this.closeStatusModal();
     } else if (this.showModal && !this.saving) {
       this.closeModal();
@@ -550,8 +664,16 @@ export class ClientsListComponent implements OnInit {
   }
 
   loadDropdownData(): void {
+    this.adminService.getEmployerCompanies().subscribe({
+      next: (data) => (this.employerCompanies = data),
+    });
     this.adminService.getCompanies().subscribe({
-      next: (data) => (this.companies = data),
+      next: (data) => {
+        this.companies = data;
+        if (this.employerCompanies.length === 0) {
+          this.employerCompanies = data.filter((c) => c.is_employer);
+        }
+      },
     });
     this.adminService.getCatalogs(CatalogCategory.JOB_TITLE).subscribe({
       next: (data) => (this.jobTitles = data),
@@ -562,27 +684,26 @@ export class ClientsListComponent implements OnInit {
   }
 
   loadClients(): void {
-    const token = this.auth.token();
-    const headers = new HttpHeaders({ Authorization: `Bearer ${token || ''}` });
-
-    let url = `${getApiBaseUrl()}/clients?`;
-    if (this.searchTerm) url += `search=${encodeURIComponent(this.searchTerm)}&`;
-    if (this.filterCompany) url += `employerCompanyId=${encodeURIComponent(this.filterCompany)}&`;
-    if (this.filterClassification) url += `classification=${encodeURIComponent(this.filterClassification)}&`;
-    if (this.filterStatus) url += `creditStatus=${encodeURIComponent(this.filterStatus)}&`;
-
     this.loadingClients = true;
     this.errorClients = '';
-    this.http.get<ClientProfile[]>(url, { headers }).subscribe({
-      next: (data) => {
-        this.clients = data;
-        this.loadingClients = false;
-      },
-      error: (err) => {
-        this.loadingClients = false;
-        this.errorClients = err.error?.message || 'No se pudo cargar el directorio de clientes.';
-      },
-    });
+    this.adminService
+      .getClients({
+        search: this.searchTerm || undefined,
+        employerCompanyId: this.filterCompany || undefined,
+        creditStatus: this.filterStatus || undefined,
+      })
+      .subscribe({
+        next: (data) => {
+          this.clients = this.filterClassification
+            ? data.filter((c) => c.classification === this.filterClassification)
+            : data;
+          this.loadingClients = false;
+        },
+        error: (err) => {
+          this.loadingClients = false;
+          this.errorClients = err.error?.message || 'No se pudo cargar el directorio de clientes.';
+        },
+      });
   }
 
   openClientModal(client?: ClientProfile): void {
@@ -605,7 +726,7 @@ export class ClientsListComponent implements OnInit {
     } else {
       this.editingClientId = null;
       this.clientForm = {
-        employer_company_id: this.companies.length > 0 ? this.companies[0].id : '',
+        employer_company_id: this.employerCompanies.length > 0 ? this.employerCompanies[0].id : '',
         employee_code: '',
         national_id: '',
         first_name: '',
@@ -617,6 +738,7 @@ export class ClientsListComponent implements OnInit {
         whatsapp_phone: '',
         birth_date: '',
         approved_limit: 5000,
+        credit_status: 'ACTIVE',
       };
     }
     this.modalError = '';
@@ -687,6 +809,7 @@ export class ClientsListComponent implements OnInit {
         whatsapp_phone: this.clientForm.whatsapp_phone,
         birth_date: this.clientForm.birth_date,
         approved_limit: this.clientForm.approved_limit,
+        credit_status: this.clientForm.credit_status,
       };
 
       this.adminService.createClient(payload).subscribe({
@@ -720,23 +843,25 @@ export class ClientsListComponent implements OnInit {
   confirmStatusChange(): void {
     if (!this.pendingStatusChange || !this.statusReason.trim()) return;
     const { client, nextStatus } = this.pendingStatusChange;
-    const token = this.auth.token();
-    const headers = new HttpHeaders({ Authorization: `Bearer ${token || ''}` });
 
     this.updatingStatus = true;
     this.statusError = '';
-    this.http
-      .patch(
-        `${getApiBaseUrl()}/clients/${client.id}/status`,
-        { credit_status: nextStatus, reason: this.statusReason.trim() },
-        { headers },
-      )
+    this.adminService
+      .updateClientStatus(client.id, {
+        credit_status: nextStatus,
+        reason: this.statusReason.trim(),
+      })
       .subscribe({
-        next: () => {
+        next: (res) => {
           this.updatingStatus = false;
           this.closeStatusModal();
           this.feedbackType = 'success';
-          this.feedbackMessage = `Estado crediticio actualizado a ${nextStatus}.`;
+          const wa = res.whatsapp_notification;
+          if (wa?.ok) {
+            this.feedbackMessage = `Estado crediticio actualizado a ${formatCreditStatusLabel(nextStatus)} y notificado por WhatsApp a ${wa.phone}.`;
+          } else {
+            this.feedbackMessage = `Estado crediticio actualizado a ${formatCreditStatusLabel(nextStatus)}.`;
+          }
           this.loadClients();
         },
         error: (err) => {
@@ -744,6 +869,48 @@ export class ClientsListComponent implements OnInit {
           this.statusError = err.error?.message || 'Error al actualizar estado';
         },
       });
+  }
+
+  openIncreaseRequestModal(client: ClientProfile): void {
+    this.requestTargetClient = client;
+    this.increaseLimit = Math.round(Number(client.approved_limit) * 1.25) || 5000;
+    this.increaseReason = '';
+    this.increaseError = '';
+  }
+
+  closeIncreaseRequestModal(): void {
+    this.requestTargetClient = null;
+    this.increaseReason = '';
+    this.increaseError = '';
+  }
+
+  submitIncreaseRequest(): void {
+    if (!this.requestTargetClient || !this.increaseReason.trim()) return;
+    this.creatingIncrease = true;
+    this.increaseError = '';
+
+    this.creditRequestsService
+      .create({
+        client_id: this.requestTargetClient.id,
+        requested_limit: Number(this.increaseLimit),
+        reason: this.increaseReason.trim(),
+      })
+      .subscribe({
+        next: () => {
+          this.creatingIncrease = false;
+          this.closeIncreaseRequestModal();
+          this.feedbackType = 'success';
+          this.feedbackMessage = 'Solicitud de aumento registrada en la bandeja de Comité de Crédito.';
+        },
+        error: (err) => {
+          this.creatingIncrease = false;
+          this.increaseError = err.error?.message || 'No se pudo registrar la solicitud de aumento';
+        },
+      });
+  }
+
+  toNumber(val: string | number): number {
+    return Number(val) || 0;
   }
 
   formatNumber(val: string | number): string {

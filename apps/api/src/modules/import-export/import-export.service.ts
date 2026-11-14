@@ -12,7 +12,7 @@ import {
   CreditTransaction,
   AuditLog,
 } from '../../database/entities';
-import { ImportType, CreditStatus, TransactionType, TransactionStatus } from '../../common/enums';
+import { CompanyStatus, ImportType, CreditStatus, TransactionType, TransactionStatus } from '../../common/enums';
 import { CryptoService } from '../../common/crypto/crypto.service';
 
 export interface DryRunValidationResult {
@@ -145,6 +145,15 @@ export class ImportExportService {
       details: Record<string, string | number>;
     }> = [];
 
+    const employerCompanies = await this.dataSource.getRepository(Company).find({
+      where: { is_employer: true },
+    });
+    const employerByCode = new Map(
+      employerCompanies.map((c) => [c.code.trim().toUpperCase(), c]),
+    );
+    const defaultEmployer =
+      employerCompanies.find((c) => c.status === CompanyStatus.ACTIVE) || employerCompanies[0] || null;
+
     const seenIds = new Set<string>();
     let newCount = 0;
     let updateCount = 0;
@@ -184,12 +193,56 @@ export class ImportExportService {
       });
 
       if (type === ImportType.CLIENTS) {
-        const approvedLimit = Number(r.LIMITE_APROBADO || r.approved_limit || 0);
-        if (isNaN(approvedLimit) || approvedLimit < 0) {
-          errors.push({ row: rowNum, field: 'LIMITE_APROBADO', message: 'Límite debe ser número positivo' });
+        let rowHasError = false;
+        const companyCodeRaw = String(r.EMPRESA_CODIGO || r.company_code || '').trim().toUpperCase();
+        if (companyCodeRaw) {
+          const matchedComp = employerByCode.get(companyCodeRaw);
+          if (!matchedComp) {
+            rowHasError = true;
+            errors.push({
+              row: rowNum,
+              field: 'EMPRESA_CODIGO',
+              message: `Empresa empleadora '${companyCodeRaw}' no existe`,
+            });
+          } else if (matchedComp.status !== CompanyStatus.ACTIVE) {
+            rowHasError = true;
+            errors.push({
+              row: rowNum,
+              field: 'EMPRESA_CODIGO',
+              message: `Empresa empleadora '${companyCodeRaw}' está inactiva`,
+            });
+          }
+        } else if (!existingClient && !defaultEmployer) {
+          rowHasError = true;
+          errors.push({
+            row: rowNum,
+            field: 'EMPRESA_CODIGO',
+            message: 'No hay empresa empleadora activa por defecto',
+          });
         }
 
-        if (existingClient) {
+        const approvedLimit = Number(r.LIMITE_APROBADO || r.approved_limit || 0);
+        if (isNaN(approvedLimit) || approvedLimit < 0) {
+          rowHasError = true;
+          errors.push({ row: rowNum, field: 'LIMITE_APROBADO', message: 'Límite debe ser número positivo' });
+        } else if (existingClient && approvedLimit < Number(existingClient.used_balance)) {
+          rowHasError = true;
+          errors.push({
+            row: rowNum,
+            field: 'LIMITE_APROBADO',
+            message: `Nuevo límite (${approvedLimit}) es menor al saldo consumido (${existingClient.used_balance})`,
+          });
+        }
+
+        if (rowHasError) {
+          previewData.push({
+            row: rowNum,
+            action: 'ERROR',
+            identifier: cedula,
+            description: 'Error de validación en empresa o límite',
+            details: r,
+          });
+        } else if (existingClient) {
           updateCount++;
           previewData.push({
             row: rowNum,
@@ -221,6 +274,19 @@ export class ImportExportService {
             action: 'ERROR',
             identifier: cedula,
             description: 'Cliente no encontrado para ajuste de límite',
+            details: r,
+          });
+        } else if (newLimit < Number(existingClient.used_balance)) {
+          errors.push({
+            row: rowNum,
+            field: 'NUEVO_LIMITE',
+            message: `Nuevo límite (C$ ${newLimit}) no puede ser menor al saldo consumido (C$ ${existingClient.used_balance})`,
+          });
+          previewData.push({
+            row: rowNum,
+            action: 'ERROR',
+            identifier: cedula,
+            description: 'Límite inferior al saldo consumido',
             details: r,
           });
         } else {
@@ -295,11 +361,15 @@ export class ImportExportService {
     await queryRunner.startTransaction('READ COMMITTED');
 
     try {
-      const defaultCompany = await queryRunner.manager.findOne(Company, {
-        where: { is_employer: true },
+      const employers = await queryRunner.manager.find(Company, {
+        where: { is_employer: true, status: CompanyStatus.ACTIVE },
       });
+      const employerByCode = new Map(
+        employers.map((c) => [c.code.trim().toUpperCase(), c]),
+      );
+      const defaultCompany = employers[0] || null;
 
-      if (!defaultCompany) {
+      if (!defaultCompany && employers.length === 0) {
         throw new BadRequestException('No hay una empresa empleadora activa configurada');
       }
 
@@ -312,11 +382,24 @@ export class ImportExportService {
             lock: { mode: 'pessimistic_write' },
           });
 
+          const companyCodeRaw = String(row.EMPRESA_CODIGO || row.company_code || '')
+            .trim()
+            .toUpperCase();
+          const rowCompany = companyCodeRaw
+            ? employerByCode.get(companyCodeRaw)
+            : defaultCompany;
+          if (!rowCompany) {
+            throw new BadRequestException(
+              `Empresa empleadora '${companyCodeRaw}' no encontrada o inactiva`,
+            );
+          }
+
           const approved = Number(row.LIMITE_APROBADO || row.approved_limit || 0).toFixed(2);
           const rawSalary = Number(row.SALARIO || row.salary || 0);
           const encryptedSalary = rawSalary > 0 ? this.cryptoService.encrypt(rawSalary.toFixed(2)) : null;
 
           if (client) {
+            if (companyCodeRaw) client.employer_company_id = rowCompany.id;
             client.first_name = String(row.NOMBRES || row.first_name || client.first_name).trim();
             client.last_name = String(row.APELLIDOS || row.last_name || client.last_name).trim();
             client.job_title = String(row.CARGO || row.job_title || client.job_title).trim();
@@ -329,7 +412,7 @@ export class ImportExportService {
           } else {
             const employeeCode = String(row.CODIGO_CARNET || row.employee_code || `EMP-${Date.now().toString().slice(-4)}`).trim();
             client = queryRunner.manager.create(ClientCreditProfile, {
-              employer_company_id: defaultCompany.id,
+              employer_company_id: rowCompany.id,
               employee_code: employeeCode,
               national_id: cedula,
               first_name: String(row.NOMBRES || row.first_name || '').trim(),
