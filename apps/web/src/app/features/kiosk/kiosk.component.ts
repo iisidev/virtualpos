@@ -11,6 +11,7 @@ import { FormsModule } from '@angular/forms';
 import * as QRCode from 'qrcode';
 import { KioskService } from '../../core/services/kiosk.service';
 import { KioskDisplayData } from '../../core/models';
+import { formatCreditStatusLabel } from '../../shared/ui-labels';
 
 @Component({
   selector: 'app-kiosk',
@@ -18,12 +19,12 @@ import { KioskDisplayData } from '../../core/models';
   imports: [CommonModule, FormsModule],
   template: `
     <div class="kiosk-page">
-      <!-- Kiosk Header -->
+      <!-- Encabezado del kiosco -->
       <header class="kiosk-header">
         <div class="kiosk-brand">
           <i class="tablet alternate icon" aria-hidden="true"></i>
           <div>
-            <h1>KIOSCO POS VIRTUAL</h1>
+            <h1>Kiosco POS Virtual</h1>
             <p>Consulte su disponibilidad y estado de cuenta al instante</p>
           </div>
         </div>
@@ -35,7 +36,7 @@ import { KioskDisplayData } from '../../core/models';
       </header>
 
       <main class="kiosk-main">
-        <!-- IDLE / SCANNER MODE -->
+        <!-- Modo espera / escáner -->
         <div *ngIf="!kioskData" class="scanner-card bento-card">
           <div class="scanner-hero">
             <div class="icon-radar">
@@ -66,8 +67,7 @@ import { KioskDisplayData } from '../../core/models';
             >
               <span *ngIf="!loading">Consultar <i class="arrow right icon" aria-hidden="true"></i></span>
               <span *ngIf="loading">
-                <i class="spinner loading icon" aria-hidden="true"></i>
-                <span class="sr-only">Consultando...</span>
+                <i class="spinner loading icon" aria-hidden="true"></i> Consultando...
               </span>
             </button>
           </div>
@@ -77,9 +77,9 @@ import { KioskDisplayData } from '../../core/models';
           </div>
         </div>
 
-        <!-- RESULTS MODE (15-SECOND AUTO-RESET BENTO GRID) -->
+        <!-- Resultados con reinicio automático cada 15 segundos -->
         <div *ngIf="kioskData" class="kiosk-results bento-grid">
-          <!-- Client Profile Bento Cell (7 Cols) -->
+          <!-- Perfil del cliente -->
           <div class="bento-card ui-col-7" [ngClass]="kioskData.status_color_class">
             <div class="kiosk-client-header">
               <div>
@@ -97,12 +97,12 @@ import { KioskDisplayData } from '../../core/models';
                   blocked: kioskData.credit_status !== 'ACTIVE'
                 }"
               >
-                {{ kioskData.credit_status }}
+                {{ formatCreditStatusLabel(kioskData.credit_status) }}
               </span>
             </div>
 
             <div class="kiosk-balance-box">
-              <span class="label">SU CRÉDITO DISPONIBLE:</span>
+              <span class="label">Su crédito disponible</span>
               <div
                 class="balance-display"
                 [class.ui-credit-warning]="kioskData.status_color_class === 'amber'"
@@ -137,6 +137,8 @@ import { KioskDisplayData } from '../../core/models';
             <div class="qr-canvas-wrapper">
               <canvas
                 #waCanvas
+                width="180"
+                height="180"
                 role="img"
                 [attr.aria-label]="'Código QR de WhatsApp para estado de cuenta de ' + kioskData.full_name"
               ></canvas>
@@ -157,6 +159,7 @@ export class KioskComponent implements OnInit, OnDestroy {
   @ViewChild('kioskInput') kioskInput?: ElementRef<HTMLInputElement>;
 
   private readonly kioskService = inject(KioskService);
+  readonly formatCreditStatusLabel = formatCreditStatusLabel;
 
   query = '001-121092-0000X';
   kioskData: KioskDisplayData | null = null;

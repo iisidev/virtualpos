@@ -129,8 +129,12 @@
   color: var(--red-main) !important;
 }
 
-.text-blue {
+.text-accent {
   color: var(--accent-text) !important;
+}
+
+.empty-reset-btn {
+  margin-top: 12px;
 }
 
 .action-bar {

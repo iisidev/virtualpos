@@ -624,6 +624,7 @@
 
 @container workspace (max-width: 760px) {
   .ui-retail .ui-btn,
+  .ui-retail .ui.button,
   .ui-retail .icon-btn,
   .ui-retail .close-btn {
     min-height: 44px;

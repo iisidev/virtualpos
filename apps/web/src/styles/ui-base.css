@@ -31,6 +31,26 @@ body.ui-retail {
   -webkit-tap-highlight-color: transparent;
 }
 
+.ui-retail a[href],
+.ui-retail button:not(:disabled),
+.ui-retail summary,
+.ui-retail select:not(:disabled),
+.ui-retail label[for],
+.ui-retail input[type="checkbox"]:not(:disabled),
+.ui-retail input[type="radio"]:not(:disabled),
+.ui-retail [role="button"]:not([aria-disabled="true"]),
+.ui-retail [role="tab"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+.ui-retail button:disabled,
+.ui-retail select:disabled,
+.ui-retail input:disabled,
+.ui-retail textarea:disabled,
+.ui-retail [aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 .ui-retail h1,
 .ui-retail h2,
 .ui-retail h3,
@@ -104,6 +124,11 @@ html::-webkit-scrollbar {
 }
 
 @media (max-width: 760px) {
+  body.ui-retail {
+    --ui-card-padding: 16px;
+    --ui-gap: 14px;
+  }
+
   html {
     scroll-padding-bottom: calc(var(--navigation-dock-height) + 16px);
   }

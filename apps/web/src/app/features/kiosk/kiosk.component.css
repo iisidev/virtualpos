@@ -82,7 +82,7 @@
   color: var(--red-main);
   border: 1px solid var(--danger-border);
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   font-size: var(--ui-control-size);
   font-weight: 600;
 }

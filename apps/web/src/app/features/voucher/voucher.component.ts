@@ -104,6 +104,8 @@ import { VoucherDetails } from '../../core/models';
           <div class="qr-box">
             <canvas
               #qrCanvasOriginal
+              width="100"
+              height="100"
               role="img"
               [attr.aria-label]="'Código QR de verificación para voucher ' + voucher.voucher_number"
             ></canvas>
@@ -167,6 +169,8 @@ import { VoucherDetails } from '../../core/models';
           <div class="qr-box">
             <canvas
               #qrCanvasCopy
+              width="100"
+              height="100"
               role="img"
               [attr.aria-label]="'Código QR copia cliente para voucher ' + voucher.voucher_number"
             ></canvas>

@@ -17,6 +17,10 @@ import {
 } from '../../core/models';
 import { VoucherComponent } from '../voucher/voucher.component';
 import { StatusBannerComponent } from '../../shared/status-banner.component';
+import {
+  formatCreditStatusLabel,
+  formatTransactionStatusLabel,
+} from '../../shared/ui-labels';
 
 @Component({
   selector: 'app-pos',
@@ -24,11 +28,11 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
   imports: [CommonModule, FormsModule, VoucherComponent, StatusBannerComponent],
   template: `
     <div class="pos-container">
-      <!-- Top Action Ribbon with Ergonomic Keyboard Hints -->
+      <!-- Cinta superior de terminal y atajos de teclado -->
       <div class="pos-ribbon bento-card">
         <div class="ribbon-title">
           <i class="cash register icon" aria-hidden="true"></i>
-          <h1>TERMINAL DE CAJA: {{ activeTerminal?.terminal_code || 'POS-CAJA-01' }} {{ activeTerminal?.name ? ' - ' + activeTerminal.name : '' }}</h1>
+          <h1>Terminal de caja: {{ activeTerminal?.terminal_code || 'POS-CAJA-01' }}{{ activeTerminal?.name ? ' - ' + activeTerminal.name : '' }}</h1>
         </div>
         <div class="ribbon-shortcuts">
           <span class="shortcut-item"><span class="key-badge">F2</span> Escanear Cédula / Carnet</span>
@@ -43,9 +47,9 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
         (dismiss)="feedbackMessage = ''"
       ></app-status-banner>
 
-      <!-- Bento 12-Column Layout -->
+      <!-- Cuadrícula principal (12 columnas) -->
       <div class="bento-grid">
-        <!-- SEARCH & SCANNER INPUT CELL (12 COLS) -->
+        <!-- Búsqueda de cliente por escáner o cédula -->
         <div class="bento-card pos-search-card ui-col-12">
           <div class="scanner-input-group">
             <div class="scanner-field">
@@ -70,12 +74,17 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
           </div>
         </div>
 
-        <!-- CLIENT BENTO CARD (7 COLUMNS) -->
+        <!-- Tarjeta de cliente y saldo disponible -->
         <div
           class="bento-card pos-client-card ui-col-7"
           [ngClass]="client?.status_color_class || 'emerald'"
         >
-          <div *ngIf="!client" class="empty-state">
+          <div *ngIf="searching && !client" class="ui-state-box" role="status" aria-live="polite">
+            <i class="spinner loading icon" aria-hidden="true"></i>
+            <span>Consultando saldo del cliente...</span>
+          </div>
+
+          <div *ngIf="!searching && !client" class="empty-state">
             <i class="id card outline icon empty-icon" aria-hidden="true"></i>
             <h2>Esperando Lectura de Cliente</h2>
             <p>Acerque el carnet con código de barras o digite la cédula para visualizar la línea de crédito.</p>
@@ -100,7 +109,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
                   blocked: client.credit_status !== 'ACTIVE'
                 }"
               >
-                {{ client.credit_status }}
+                {{ formatCreditStatusLabel(client.credit_status) }}
               </span>
             </div>
 
@@ -110,7 +119,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
 
             <!-- Big Available Balance -->
             <div class="balance-card">
-              <span class="balance-label">CRÉDITO DISPONIBLE PARA COMPRA:</span>
+              <span class="balance-label">Crédito disponible para compra</span>
               <div
                 class="balance-display"
                 [class.ui-credit-warning]="client.status_color_class === 'amber'"
@@ -206,6 +215,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
               (click)="onProcessCharge()"
             >
               <span *ngIf="!processing">
+                <i class="check circle icon" aria-hidden="true"></i>
                 <span class="key-badge">F4</span> Procesar Cobro (<span class="ui-mono">C$ {{ formatNumber(chargeAmount || 0) }}</span>)
               </span>
               <span *ngIf="processing">
@@ -215,7 +225,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
           </div>
         </div>
 
-        <!-- RECENT TRANSACTIONS TABLE CELL (12 COLUMNS) -->
+        <!-- Historial reciente de movimientos -->
         <div class="bento-card pos-transactions-card ui-col-12">
           <div class="table-header">
             <h2><i class="history icon" aria-hidden="true"></i> Movimientos Recientes en Esta Caja</h2>
@@ -231,7 +241,12 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
             <button type="button" class="ui-btn primary-btn" (click)="loadRecentTransactions()">Reintentar</button>
           </div>
 
-          <div class="table-responsive">
+          <div *ngIf="loadingRecent && recentTransactions.length === 0" class="ui-state-box" role="status" aria-live="polite">
+            <i class="spinner loading icon" aria-hidden="true"></i>
+            <span>Cargando movimientos de la caja...</span>
+          </div>
+
+          <div *ngIf="!recentError && (!loadingRecent || recentTransactions.length > 0)" class="table-responsive">
             <table class="ui selectable table">
               <thead>
                 <tr>
@@ -263,7 +278,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
                         blocked: tx.status === 'VOIDED'
                       }"
                     >
-                      {{ tx.status }}
+                      {{ formatTransactionStatusLabel(tx.status) }}
                     </span>
                   </td>
                   <td class="pos-row-actions">
@@ -299,7 +314,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
         </div>
       </div>
 
-      <!-- THERMAL VOUCHER MODAL OVERLAY -->
+      <!-- Modal de voucher térmico -->
       <div
         class="modal-overlay"
         *ngIf="activeVoucher"
@@ -313,7 +328,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
         </div>
       </div>
 
-      <!-- AVAILABILITY TICKET MODAL OVERLAY -->
+      <!-- Modal de ticket de disponibilidad -->
       <div
         class="modal-overlay"
         *ngIf="availabilityTicket"
@@ -351,7 +366,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
         </div>
       </div>
 
-      <!-- VOID TRANSACTION MODAL OVERLAY -->
+      <!-- Modal de anulación de transacción -->
       <div
         class="modal-overlay"
         *ngIf="pendingVoidTx"
@@ -388,6 +403,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
                 Cancelar
               </button>
               <button type="submit" class="ui negative button" [disabled]="voiding || !voidReason.trim()">
+                <i class="ban icon" *ngIf="!voiding" aria-hidden="true"></i>
                 {{ voiding ? 'Anulando...' : 'Confirmar Anulación' }}
               </button>
             </div>
@@ -403,6 +419,8 @@ export class PosComponent implements OnInit {
 
   private readonly posService = inject(PosService);
   private readonly auth = inject(AuthService);
+  readonly formatCreditStatusLabel = formatCreditStatusLabel;
+  readonly formatTransactionStatusLabel = formatTransactionStatusLabel;
 
   searchQuery = '001-121092-0000X'; // Default demo client
   client: ClientProfile | null = null;

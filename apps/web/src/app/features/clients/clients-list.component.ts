@@ -14,6 +14,7 @@ import {
 } from '../../core/models';
 import { getApiBaseUrl } from '../../core/config/api.config';
 import { StatusBannerComponent } from '../../shared/status-banner.component';
+import { formatCreditStatusLabel } from '../../shared/ui-labels';
 
 @Component({
   selector: 'app-clients-list',
@@ -156,7 +157,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
                       blocked: c.credit_status !== 'ACTIVE'
                     }"
                   >
-                    {{ c.credit_status }}
+                    {{ formatCreditStatusLabel(c.credit_status) }}
                   </span>
                 </td>
                 <td class="text-right">
@@ -209,7 +210,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
         </div>
       </div>
 
-      <!-- MODAL: CREAR / EDITAR CLIENTE -->
+      <!-- Modal crear / editar cliente -->
       <div
         *ngIf="showModal"
         class="modal-backdrop"
@@ -392,6 +393,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
                 Cancelar
               </button>
               <button type="submit" class="ui-btn primary-btn" [disabled]="saving">
+                <i class="save icon" *ngIf="!saving" aria-hidden="true"></i>
                 {{ saving ? 'Guardando...' : (editingClientId ? 'Actualizar Cliente' : 'Guardar Cliente') }}
               </button>
             </div>
@@ -399,7 +401,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
         </div>
       </div>
 
-      <!-- MODAL: CAMBIO DE ESTADO -->
+      <!-- Modal cambio de estado -->
       <div
         *ngIf="pendingStatusChange"
         class="modal-backdrop"
@@ -450,6 +452,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
                 class="ui-btn primary-btn"
                 [disabled]="updatingStatus || !statusReason.trim()"
               >
+                <i class="check icon" *ngIf="!updatingStatus" aria-hidden="true"></i>
                 {{ updatingStatus ? 'Actualizando...' : 'Confirmar Cambio' }}
               </button>
             </div>
@@ -464,6 +467,7 @@ export class ClientsListComponent implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly adminService = inject(AdminService);
+  readonly formatCreditStatusLabel = formatCreditStatusLabel;
 
   clients: ClientProfile[] = [];
   companies: Company[] = [];
