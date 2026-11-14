@@ -17,20 +17,23 @@
   gap: 16px;
 }
 
+.header-info h1,
 .header-info h2 {
   margin: 0;
-  font-size: 22px;
+  font-size: clamp(20px, 2.2vw, 24px);
   font-weight: 700;
   letter-spacing: -0.3px;
+  line-height: 1.25;
   color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
+.header-info h1 > i.icon,
 .header-info h2 > i.icon {
   margin: 0;
-  color: var(--palette-action);
+  color: var(--action-surface);
 }
 
 .header-info p {
@@ -83,7 +86,7 @@
 }
 
 .tab-btn.active > i.icon {
-  color: var(--palette-action);
+  color: var(--action-surface);
 }
 
 .stats-grid {
@@ -144,7 +147,7 @@
   align-items: center;
   gap: 8px;
   background: var(--surface-input);
-  border: 1px solid var(--gray-border);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius-control);
   padding: 9px 12px;
   flex: 1 1 260px;
@@ -155,8 +158,13 @@
 }
 
 .search-box:focus-within {
-  border-color: var(--palette-action);
-  box-shadow: 0 0 0 3px rgb(234 88 12 / 12%);
+  border-color: var(--action-surface);
+  box-shadow: 0 0 0 3px rgb(194 65 12 / 14%);
+}
+
+.search-box:has(input:focus-visible) {
+  outline: 3px solid var(--action-surface);
+  outline-offset: 2px;
 }
 
 .search-box > i.icon {
@@ -168,11 +176,15 @@
 .search-box input {
   border: none;
   background: transparent;
-  outline: none;
   width: 100%;
   font-family: var(--font-body);
   font-size: var(--ui-control-size);
   color: var(--text-primary);
+}
+
+.search-box input:focus,
+.search-box input:focus-visible {
+  outline: 2px solid transparent;
 }
 
 .catalog-subtabs {
@@ -182,7 +194,7 @@
 }
 
 .subtab-btn {
-  border: 1px solid var(--gray-border);
+  border: 1px solid var(--input-border);
   background: var(--white-card);
   color: var(--text-secondary);
   padding: 8px 13px;
@@ -323,6 +335,17 @@
   font-size: var(--ui-control-size);
   color: var(--text-primary);
   cursor: pointer;
+}
+
+.modal-error-banner {
+  margin-bottom: 14px;
+}
+
+@container workspace (max-width: 760px) {
+  .tab-btn,
+  .subtab-btn {
+    min-height: 44px;
+  }
 }
 
 @container workspace (max-width: 640px) {
