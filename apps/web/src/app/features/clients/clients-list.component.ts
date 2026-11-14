@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
@@ -13,32 +13,40 @@ import {
   UpdateClientPayload,
 } from '../../core/models';
 import { getApiBaseUrl } from '../../core/config/api.config';
+import { StatusBannerComponent } from '../../shared/status-banner.component';
 
 @Component({
   selector: 'app-clients-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, StatusBannerComponent],
   template: `
     <div class="clients-page">
       <!-- Bento Header -->
       <div class="page-header bento-card">
         <div>
-          <h2><i class="users icon"></i> Directorio de Clientes y Líneas de Crédito</h2>
+          <h1><i class="users icon" aria-hidden="true"></i> Directorio de Clientes y Líneas de Crédito</h1>
           <p>Control de perfiles de colaboradores, saldos, límites asignados y bloqueos preventivos</p>
         </div>
 
-        <button class="ui-btn primary-btn" (click)="openClientModal()">
-          <i class="user plus icon"></i> Registrar Nuevo Cliente
+        <button type="button" class="ui-btn primary-btn" (click)="openClientModal()">
+          <i class="user plus icon" aria-hidden="true"></i> Registrar Nuevo Cliente
         </button>
       </div>
+
+      <app-status-banner
+        [message]="feedbackMessage"
+        [type]="feedbackType"
+        (dismiss)="feedbackMessage = ''"
+      ></app-status-banner>
 
       <!-- Filters Ribbon (12 Cols) -->
       <div class="bento-card filter-card">
         <div class="filter-group flex-2">
-          <label>Búsqueda Rápida:</label>
+          <label for="client-search">Búsqueda Rápida:</label>
           <div class="search-input-wrap">
             <i class="search icon" aria-hidden="true"></i>
             <input
+              id="client-search"
               type="text"
               class="ui-input"
               [(ngModel)]="searchTerm"
@@ -49,16 +57,16 @@ import { getApiBaseUrl } from '../../core/config/api.config';
         </div>
 
         <div class="filter-group flex-1">
-          <label>Empresa Empleadora:</label>
-          <select class="ui dropdown select-box" [(ngModel)]="filterCompany" (change)="loadClients()">
+          <label for="client-filter-company">Empresa Empleadora:</label>
+          <select id="client-filter-company" class="ui dropdown select-box" [(ngModel)]="filterCompany" (change)="loadClients()">
             <option value="">Todas las Empresas</option>
             <option *ngFor="let c of companies" [value]="c.id">{{ c.name }}</option>
           </select>
         </div>
 
         <div class="filter-group flex-1">
-          <label>Clasificación:</label>
-          <select class="ui dropdown select-box" [(ngModel)]="filterClassification" (change)="loadClients()">
+          <label for="client-filter-class">Clasificación:</label>
+          <select id="client-filter-class" class="ui dropdown select-box" [(ngModel)]="filterClassification" (change)="loadClients()">
             <option value="">Todas</option>
             <option value="PLANTA">PLANTA</option>
             <option value="CONFIANZA">CONFIANZA</option>
@@ -68,8 +76,8 @@ import { getApiBaseUrl } from '../../core/config/api.config';
         </div>
 
         <div class="filter-group flex-1">
-          <label>Estado Crediticio:</label>
-          <select class="ui dropdown select-box" [(ngModel)]="filterStatus" (change)="loadClients()">
+          <label for="client-filter-status">Estado Crediticio:</label>
+          <select id="client-filter-status" class="ui dropdown select-box" [(ngModel)]="filterStatus" (change)="loadClients()">
             <option value="">Todos</option>
             <option value="ACTIVE">ACTIVO</option>
             <option value="FROZEN">CONGELADO</option>
@@ -80,7 +88,19 @@ import { getApiBaseUrl } from '../../core/config/api.config';
 
       <!-- Clients Bento Table -->
       <div class="bento-card table-card">
-        <div class="table-responsive">
+        <div *ngIf="loadingClients && clients.length === 0" class="ui-state-box" role="status">
+          <i class="spinner loading icon" aria-hidden="true"></i>
+          <span>Cargando directorio de clientes...</span>
+        </div>
+
+        <div *ngIf="errorClients && clients.length === 0" class="ui-banner error" role="alert">
+          <span class="ui-banner-msg">
+            <i class="exclamation triangle icon" aria-hidden="true"></i> {{ errorClients }}
+          </span>
+          <button type="button" class="ui-btn primary-btn" (click)="loadClients()">Reintentar</button>
+        </div>
+
+        <div *ngIf="!errorClients && (clients.length > 0 || !loadingClients)" class="table-responsive">
           <table class="ui-table">
             <thead>
               <tr>
@@ -173,7 +193,15 @@ import { getApiBaseUrl } from '../../core/config/api.config';
               </tr>
               <tr *ngIf="clients.length === 0">
                 <td colspan="10" class="empty-state">
-                  No se encontraron clientes con los filtros indicados.
+                  <div>No se encontraron clientes con los filtros indicados.</div>
+                  <button
+                    *ngIf="hasActiveFilters()"
+                    type="button"
+                    class="ui-btn secondary-btn empty-reset-btn"
+                    (click)="clearFilters()"
+                  >
+                    Limpiar filtros
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -182,19 +210,33 @@ import { getApiBaseUrl } from '../../core/config/api.config';
       </div>
 
       <!-- MODAL: CREAR / EDITAR CLIENTE -->
-      <div *ngIf="showModal" class="modal-backdrop">
-        <div class="bento-card modal-content">
+      <div
+        *ngIf="showModal"
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="client-modal-title"
+        (click)="!saving && closeModal()"
+      >
+        <div class="bento-card modal-content" (click)="$event.stopPropagation()">
           <div class="modal-header">
-            <h3>{{ editingClientId ? 'Editar Perfil de Cliente' : 'Registrar Nuevo Cliente / Colaborador' }}</h3>
-            <button class="close-btn" (click)="closeModal()">&times;</button>
+            <h2 id="client-modal-title">{{ editingClientId ? 'Editar Perfil de Cliente' : 'Registrar Nuevo Cliente / Colaborador' }}</h2>
+            <button type="button" class="close-btn" aria-label="Cerrar ventana" (click)="closeModal()">&times;</button>
+          </div>
+
+          <div *ngIf="modalError" class="ui-banner error modal-error-banner" role="alert">
+            <span class="ui-banner-msg">
+              <i class="exclamation circle icon" aria-hidden="true"></i> {{ modalError }}
+            </span>
           </div>
 
           <form (ngSubmit)="saveClient()" class="modal-form">
             <!-- Row 1: Identification -->
             <div class="form-row">
               <div class="form-group flex-1">
-                <label>Cédula de Identidad *</label>
+                <label for="client-national-id">Cédula de Identidad *</label>
                 <input
+                  id="client-national-id"
                   type="text"
                   class="form-input"
                   [(ngModel)]="clientForm.national_id"
@@ -204,8 +246,9 @@ import { getApiBaseUrl } from '../../core/config/api.config';
                 />
               </div>
               <div class="form-group flex-1">
-                <label>Código de Carnet / Empleado *</label>
+                <label for="client-employee-code">Código de Carnet / Empleado *</label>
                 <input
+                  id="client-employee-code"
                   type="text"
                   class="form-input"
                   [(ngModel)]="clientForm.employee_code"
@@ -219,8 +262,9 @@ import { getApiBaseUrl } from '../../core/config/api.config';
             <!-- Row 2: Names -->
             <div class="form-row">
               <div class="form-group flex-1">
-                <label>Nombres *</label>
+                <label for="client-first-name">Nombres *</label>
                 <input
+                  id="client-first-name"
                   type="text"
                   class="form-input"
                   [(ngModel)]="clientForm.first_name"
@@ -230,8 +274,9 @@ import { getApiBaseUrl } from '../../core/config/api.config';
                 />
               </div>
               <div class="form-group flex-1">
-                <label>Apellidos *</label>
+                <label for="client-last-name">Apellidos *</label>
                 <input
+                  id="client-last-name"
                   type="text"
                   class="form-input"
                   [(ngModel)]="clientForm.last_name"
@@ -245,8 +290,8 @@ import { getApiBaseUrl } from '../../core/config/api.config';
             <!-- Row 3: Company & Job -->
             <div class="form-row">
               <div class="form-group flex-1">
-                <label>Empresa Empleadora *</label>
-                <select class="form-input" [(ngModel)]="clientForm.employer_company_id" name="employer_company_id" required>
+                <label for="client-employer-company">Empresa Empleadora *</label>
+                <select id="client-employer-company" class="form-input" [(ngModel)]="clientForm.employer_company_id" name="employer_company_id" required>
                   <option value="" disabled>Seleccione empresa...</option>
                   <option *ngFor="let c of companies" [value]="c.id">
                     {{ c.name }} ({{ c.code }})
@@ -255,8 +300,8 @@ import { getApiBaseUrl } from '../../core/config/api.config';
               </div>
 
               <div class="form-group flex-1">
-                <label>Cargo / Puesto *</label>
-                <select class="form-input" [(ngModel)]="clientForm.job_title" name="job_title" required>
+                <label for="client-job-title">Cargo / Puesto *</label>
+                <select id="client-job-title" class="form-input" [(ngModel)]="clientForm.job_title" name="job_title" required>
                   <option value="" disabled>Seleccione cargo...</option>
                   <option *ngFor="let j of jobTitles" [value]="j.name">{{ j.name }}</option>
                 </select>
@@ -266,15 +311,15 @@ import { getApiBaseUrl } from '../../core/config/api.config';
             <!-- Row 4: Grade & Classification -->
             <div class="form-row">
               <div class="form-group flex-1">
-                <label>Grado Salarial</label>
-                <select class="form-input" [(ngModel)]="clientForm.grade_level" name="grade_level">
+                <label for="client-grade-level">Grado Salarial</label>
+                <select id="client-grade-level" class="form-input" [(ngModel)]="clientForm.grade_level" name="grade_level">
                   <option *ngFor="let g of gradeLevels" [value]="g.code">{{ g.name }}</option>
                 </select>
               </div>
 
               <div class="form-group flex-1">
-                <label>Tipificación de Cliente</label>
-                <select class="form-input" [(ngModel)]="clientForm.classification" name="classification">
+                <label for="client-classification">Tipificación de Cliente</label>
+                <select id="client-classification" class="form-input" [(ngModel)]="clientForm.classification" name="classification">
                   <option value="PLANTA">PLANTA</option>
                   <option value="CONFIANZA">CONFIANZA</option>
                   <option value="VIP">VIP</option>
@@ -286,8 +331,9 @@ import { getApiBaseUrl } from '../../core/config/api.config';
             <!-- Row 5: Financials & WhatsApp -->
             <div class="form-row">
               <div class="form-group flex-1">
-                <label>Límite de Crédito Aprobado (C$) *</label>
+                <label for="client-approved-limit">Límite de Crédito Aprobado (C$) *</label>
                 <input
+                  id="client-approved-limit"
                   type="number"
                   step="0.01"
                   min="0"
@@ -300,8 +346,9 @@ import { getApiBaseUrl } from '../../core/config/api.config';
               </div>
 
               <div class="form-group flex-1">
-                <label>Salario Mensual Bruto (C$)</label>
+                <label for="client-salary">Salario Mensual Bruto (C$)</label>
                 <input
+                  id="client-salary"
                   type="number"
                   step="0.01"
                   min="0"
@@ -316,8 +363,9 @@ import { getApiBaseUrl } from '../../core/config/api.config';
             <!-- Row 6: Phone & Birthdate -->
             <div class="form-row">
               <div class="form-group flex-1">
-                <label>Teléfono WhatsApp (E.164) *</label>
+                <label for="client-whatsapp-phone">Teléfono WhatsApp (E.164) *</label>
                 <input
+                  id="client-whatsapp-phone"
                   type="text"
                   class="form-input"
                   [(ngModel)]="clientForm.whatsapp_phone"
@@ -328,8 +376,9 @@ import { getApiBaseUrl } from '../../core/config/api.config';
               </div>
 
               <div class="form-group flex-1">
-                <label>Fecha de Nacimiento (YYYY-MM-DD)</label>
+                <label for="client-birth-date">Fecha de Nacimiento (YYYY-MM-DD)</label>
                 <input
+                  id="client-birth-date"
                   type="date"
                   class="form-input"
                   [(ngModel)]="clientForm.birth_date"
@@ -339,11 +388,69 @@ import { getApiBaseUrl } from '../../core/config/api.config';
             </div>
 
             <div class="modal-actions">
-              <button type="button" class="ui-btn secondary-btn" (click)="closeModal()">
+              <button type="button" class="ui-btn secondary-btn" (click)="closeModal()" [disabled]="saving">
                 Cancelar
               </button>
               <button type="submit" class="ui-btn primary-btn" [disabled]="saving">
                 {{ saving ? 'Guardando...' : (editingClientId ? 'Actualizar Cliente' : 'Guardar Cliente') }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL: CAMBIO DE ESTADO -->
+      <div
+        *ngIf="pendingStatusChange"
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="client-status-modal-title"
+        (click)="!updatingStatus && closeStatusModal()"
+      >
+        <div class="bento-card modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2 id="client-status-modal-title">
+              {{ pendingStatusChange.nextStatus === 'BLOCKED' ? 'Bloquear Línea de Crédito' : 'Reactivar Línea de Crédito' }}
+            </h2>
+            <button type="button" class="close-btn" aria-label="Cerrar ventana" (click)="closeStatusModal()">&times;</button>
+          </div>
+
+          <form (ngSubmit)="confirmStatusChange()" class="modal-form">
+            <p class="sub-text">
+              Colaborador: <strong>{{ pendingStatusChange.client.full_name }}</strong>
+              ({{ pendingStatusChange.client.national_id }})
+            </p>
+
+            <div class="form-group">
+              <label for="client-status-reason">Motivo del cambio de estado *</label>
+              <textarea
+                id="client-status-reason"
+                rows="3"
+                class="form-input"
+                [(ngModel)]="statusReason"
+                name="statusReason"
+                placeholder="Detalle la razón operativa o de riesgo..."
+                required
+              ></textarea>
+            </div>
+
+            <div *ngIf="statusError" class="ui-banner error" role="alert">
+              <span class="ui-banner-msg">
+                <i class="exclamation circle icon" aria-hidden="true"></i> {{ statusError }}
+              </span>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="ui-btn secondary-btn" (click)="closeStatusModal()" [disabled]="updatingStatus">
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                class="ui-btn primary-btn"
+                [disabled]="updatingStatus || !statusReason.trim()"
+              >
+                {{ updatingStatus ? 'Actualizando...' : 'Confirmar Cambio' }}
               </button>
             </div>
           </form>
@@ -368,10 +475,21 @@ export class ClientsListComponent implements OnInit {
   filterClassification = '';
   filterStatus = '';
 
+  loadingClients = false;
+  errorClients = '';
+  feedbackMessage = '';
+  feedbackType: 'success' | 'error' = 'success';
+
   // Modal
   showModal = false;
   editingClientId: string | null = null;
   saving = false;
+  modalError = '';
+
+  pendingStatusChange: { client: ClientProfile; nextStatus: string } | null = null;
+  statusReason = '';
+  updatingStatus = false;
+  statusError = '';
 
   clientForm: {
     employer_company_id: string;
@@ -406,6 +524,27 @@ export class ClientsListComponent implements OnInit {
     this.loadDropdownData();
   }
 
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.pendingStatusChange && !this.updatingStatus) {
+      this.closeStatusModal();
+    } else if (this.showModal && !this.saving) {
+      this.closeModal();
+    }
+  }
+
+  hasActiveFilters(): boolean {
+    return Boolean(this.searchTerm || this.filterCompany || this.filterClassification || this.filterStatus);
+  }
+
+  clearFilters(): void {
+    this.searchTerm = '';
+    this.filterCompany = '';
+    this.filterClassification = '';
+    this.filterStatus = '';
+    this.loadClients();
+  }
+
   loadDropdownData(): void {
     this.adminService.getCompanies().subscribe({
       next: (data) => (this.companies = data),
@@ -428,8 +567,17 @@ export class ClientsListComponent implements OnInit {
     if (this.filterClassification) url += `classification=${encodeURIComponent(this.filterClassification)}&`;
     if (this.filterStatus) url += `creditStatus=${encodeURIComponent(this.filterStatus)}&`;
 
+    this.loadingClients = true;
+    this.errorClients = '';
     this.http.get<ClientProfile[]>(url, { headers }).subscribe({
-      next: (data) => (this.clients = data),
+      next: (data) => {
+        this.clients = data;
+        this.loadingClients = false;
+      },
+      error: (err) => {
+        this.loadingClients = false;
+        this.errorClients = err.error?.message || 'No se pudo cargar el directorio de clientes.';
+      },
     });
   }
 
@@ -467,12 +615,14 @@ export class ClientsListComponent implements OnInit {
         approved_limit: 5000,
       };
     }
+    this.modalError = '';
     this.showModal = true;
   }
 
   closeModal(): void {
     this.showModal = false;
     this.editingClientId = null;
+    this.modalError = '';
   }
 
   saveClient(): void {
@@ -484,11 +634,12 @@ export class ClientsListComponent implements OnInit {
       !this.clientForm.last_name ||
       !this.clientForm.whatsapp_phone
     ) {
-      alert('Por favor complete todos los campos obligatorios (*)');
+      this.modalError = 'Por favor complete todos los campos obligatorios (*).';
       return;
     }
 
     this.saving = true;
+    this.modalError = '';
     if (this.editingClientId) {
       const payload: UpdateClientPayload = {
         employer_company_id: this.clientForm.employer_company_id,
@@ -509,11 +660,13 @@ export class ClientsListComponent implements OnInit {
         next: () => {
           this.saving = false;
           this.closeModal();
+          this.feedbackType = 'success';
+          this.feedbackMessage = 'Perfil de cliente actualizado correctamente.';
           this.loadClients();
         },
         error: (err) => {
           this.saving = false;
-          alert(err.error?.message || 'Error al actualizar perfil de cliente');
+          this.modalError = err.error?.message || 'Error al actualizar perfil de cliente';
         },
       });
     } else {
@@ -536,32 +689,56 @@ export class ClientsListComponent implements OnInit {
         next: () => {
           this.saving = false;
           this.closeModal();
+          this.feedbackType = 'success';
+          this.feedbackMessage = 'Cliente registrado correctamente.';
           this.loadClients();
         },
         error: (err) => {
           this.saving = false;
-          alert(err.error?.message || 'Error al registrar cliente');
+          this.modalError = err.error?.message || 'Error al registrar cliente';
         },
       });
     }
   }
 
   toggleStatus(client: ClientProfile, newStatus: string): void {
-    const reason = prompt(`Ingrese motivo para cambiar estado a ${newStatus}:`);
-    if (!reason || !reason.trim()) return;
+    this.pendingStatusChange = { client, nextStatus: newStatus };
+    this.statusReason = '';
+    this.statusError = '';
+  }
 
+  closeStatusModal(): void {
+    this.pendingStatusChange = null;
+    this.statusReason = '';
+    this.statusError = '';
+  }
+
+  confirmStatusChange(): void {
+    if (!this.pendingStatusChange || !this.statusReason.trim()) return;
+    const { client, nextStatus } = this.pendingStatusChange;
     const token = this.auth.token();
     const headers = new HttpHeaders({ Authorization: `Bearer ${token || ''}` });
 
+    this.updatingStatus = true;
+    this.statusError = '';
     this.http
       .patch(
         `${getApiBaseUrl()}/clients/${client.id}/status`,
-        { credit_status: newStatus, reason: reason.trim() },
+        { credit_status: nextStatus, reason: this.statusReason.trim() },
         { headers },
       )
       .subscribe({
-        next: () => this.loadClients(),
-        error: (err) => alert(err.error?.message || 'Error al actualizar estado'),
+        next: () => {
+          this.updatingStatus = false;
+          this.closeStatusModal();
+          this.feedbackType = 'success';
+          this.feedbackMessage = `Estado crediticio actualizado a ${nextStatus}.`;
+          this.loadClients();
+        },
+        error: (err) => {
+          this.updatingStatus = false;
+          this.statusError = err.error?.message || 'Error al actualizar estado';
+        },
       });
   }
 
