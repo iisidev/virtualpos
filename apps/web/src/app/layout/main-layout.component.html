@@ -84,7 +84,7 @@
         title="Solicitudes Límite"
         (click)="onNavLinkClick()"
       >
-        <i class="chart line icon" aria-hidden="true"></i>
+        <i class="chartline icon" aria-hidden="true"></i>
         <span class="ui-nav-label">Solicitudes Límite</span>
       </a>
       <a
@@ -135,9 +135,12 @@
       </div>
 
       <div class="ui-user" *ngIf="auth.currentUser() as user">
+        <span class="ui-user-avatar" aria-hidden="true">
+          <i class="user circle icon"></i>
+        </span>
         <div>
           <strong>{{ user.full_name }}</strong>
-          <span>{{ user.role }}</span>
+          <span>{{ formatRoleLabel(user.role) }}</span>
         </div>
         <button
           type="button"
@@ -146,7 +149,7 @@
           title="Cerrar sesión"
           (click)="auth.logout()"
         >
-          <i class="sign-out alternate icon" aria-hidden="true"></i>
+          <i class="sign out alternate icon" aria-hidden="true"></i>
         </button>
       </div>
     </header>

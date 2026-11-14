@@ -12,6 +12,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../core/services/auth.service';
 import { UserRole } from '../core/models';
+import { formatRoleLabel } from '../shared/ui-labels';
 
 @Component({
   selector: 'app-main-layout',
@@ -22,6 +23,7 @@ import { UserRole } from '../core/models';
 })
 export class MainLayoutComponent {
   readonly auth = inject(AuthService);
+  readonly formatRoleLabel = formatRoleLabel;
 
   readonly menuOpen = signal(false);
   readonly isSmallScreen = signal(false);
