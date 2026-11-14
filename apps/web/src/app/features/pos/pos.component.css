@@ -40,7 +40,7 @@
 
 .ribbon-title > i.icon {
   margin: 0;
-  color: var(--action-surface);
+  color: var(--text-secondary);
 }
 
 .ribbon-shortcuts {
@@ -189,6 +189,16 @@
   background: var(--surface-balance);
 }
 
+.bento-card.amber .balance-card {
+  background: var(--amber-subtle);
+  border-color: var(--warning-border);
+}
+
+.bento-card.red .balance-card {
+  background: var(--red-subtle);
+  border-color: var(--danger-border);
+}
+
 .balance-label {
   display: block;
   color: var(--text-muted);
@@ -269,7 +279,6 @@
 
 .checkout-box {
   background: var(--white-card);
-  border-top: 3px solid var(--charge-surface);
   display: flex;
   flex-direction: column;
 }
@@ -345,7 +354,7 @@
 
 .amount-input-wrapper:focus-within {
   border-color: var(--action-surface);
-  box-shadow: 0 0 0 3px rgb(194 65 12 / 14%);
+  box-shadow: 0 0 0 3px var(--focus-ring-tint);
 }
 
 .currency-symbol {
@@ -443,7 +452,7 @@
 .process-btn .key-badge {
   color: var(--on-charge);
   background: transparent;
-  border-color: rgb(255 255 255 / 40%);
+  border-color: var(--on-charge-muted-border);
 }
 
 .process-btn:disabled .key-badge {
@@ -503,7 +512,7 @@
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgb(24 24 27 / 48%);
+  background: var(--scrim-backdrop);
   backdrop-filter: blur(3px);
   display: flex;
   align-items: center;

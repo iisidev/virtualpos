@@ -89,7 +89,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
           </div>
           <div class="bento-card stat-item">
             <span class="stat-label">Empresas Empleadoras</span>
-            <span class="stat-value text-emerald">{{ employerCount }}</span>
+            <span class="stat-value">{{ employerCount }}</span>
           </div>
           <div class="bento-card stat-item">
             <span class="stat-label">Comercios Afiliados (POS)</span>
@@ -215,15 +215,15 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
           </div>
           <div class="bento-card stat-item">
             <span class="stat-label">Super Admins</span>
-            <span class="stat-value text-red">{{ countRole('SUPER_ADMIN') }}</span>
+            <span class="stat-value">{{ countRole('SUPER_ADMIN') }}</span>
           </div>
           <div class="bento-card stat-item">
             <span class="stat-label">Analistas de Crédito</span>
-            <span class="stat-value text-amber">{{ countRole('CREDIT_MANAGER') }}</span>
+            <span class="stat-value">{{ countRole('CREDIT_MANAGER') }}</span>
           </div>
           <div class="bento-card stat-item">
             <span class="stat-label">Cajeros POS</span>
-            <span class="stat-value text-emerald">{{ countRole('CASHIER') }}</span>
+            <span class="stat-value text-accent">{{ countRole('CASHIER') }}</span>
           </div>
         </div>
 

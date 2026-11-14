@@ -33,7 +33,7 @@
 .header-info h1 > i.icon,
 .header-info h2 > i.icon {
   margin: 0;
-  color: var(--action-surface);
+  color: var(--text-secondary);
 }
 
 .header-info p {
@@ -75,14 +75,14 @@
 }
 
 .tab-btn:hover {
-  background: rgb(255 255 255 / 70%);
+  background: var(--scrim-surface-hover);
   color: var(--text-primary);
 }
 
 .tab-btn.active {
   background: var(--white-card);
   color: var(--text-primary);
-  box-shadow: 0 1px 3px rgb(24 24 27 / 10%);
+  box-shadow: var(--shadow-control);
 }
 
 .tab-btn.active > i.icon {
@@ -163,11 +163,11 @@
 
 .search-box:focus-within {
   border-color: var(--action-surface);
-  box-shadow: 0 0 0 3px rgb(194 65 12 / 14%);
+  box-shadow: 0 0 0 3px var(--focus-ring-tint);
 }
 
 .search-box:has(input:focus-visible) {
-  outline: 3px solid var(--action-surface);
+  outline: 3px solid var(--navy-950);
   outline-offset: 2px;
 }
 
@@ -244,9 +244,9 @@
 }
 
 .badge-employer {
-  background: var(--emerald-subtle);
-  color: var(--emerald-text);
-  border: 1px solid var(--success-border);
+  background: var(--surface-balance);
+  color: var(--text-secondary);
+  border: 1px solid var(--balance-border);
 }
 
 .badge-merchant {
@@ -275,27 +275,27 @@
 }
 
 .role-admin {
-  background: var(--red-subtle);
-  color: var(--red-main);
-  border-color: var(--danger-border);
+  background: var(--surface-sidebar);
+  color: var(--sidebar-text);
+  border-color: var(--surface-sidebar);
 }
 
 .role-manager {
-  background: var(--amber-subtle);
-  color: var(--amber-text);
-  border-color: var(--warning-border);
+  background: var(--surface-table-heading);
+  color: var(--text-primary);
+  border-color: var(--balance-border);
 }
 
 .role-cashier {
-  background: var(--emerald-subtle);
-  color: var(--emerald-text);
-  border-color: var(--success-border);
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+  border-color: var(--accent-border);
 }
 
 .role-auditor {
-  background: var(--surface-balance);
+  background: var(--gray-subtle);
   color: var(--text-secondary);
-  border-color: var(--balance-border);
+  border-color: var(--gray-border);
 }
 
 .text-right {

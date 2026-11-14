@@ -65,7 +65,14 @@ import {
                 autocomplete="off"
               />
             </div>
-            <button type="button" class="ui primary button scan-btn" (click)="onSearchClient()" [disabled]="searching">
+            <button
+              type="button"
+              class="ui button scan-btn"
+              [class.primary]="!client"
+              [class.basic]="!!client"
+              (click)="onSearchClient()"
+              [disabled]="searching"
+            >
               <i class="search icon" aria-hidden="true"></i> Consultar
             </button>
           </div>
