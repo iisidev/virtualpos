@@ -17,7 +17,7 @@
   --text-primary: #2d333b;
   --text-secondary: #58616d;
   --text-muted: #626b77;
-  --icon-muted: #71717a;
+  --icon-muted: #626b77;
 
   --accent: var(--palette-action);
   --accent-hover: #9a3412;
@@ -32,7 +32,7 @@
   --sidebar-text: #fafafa;
   --sidebar-muted: #d4d4d8;
   --sidebar-icon: #a1a1aa;
-  --sidebar-accent: #fb923c;
+  --sidebar-accent: #fdba74;
 
   --surface-balance: #f1f3f5;
   --balance-border: #d5dce3;
