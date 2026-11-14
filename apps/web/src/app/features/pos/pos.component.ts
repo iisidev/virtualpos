@@ -454,7 +454,7 @@ export class PosComponent implements OnInit {
   voidError = '';
 
   feedbackMessage = '';
-  feedbackType: 'success' | 'error' = 'success';
+  feedbackType: 'success' | 'error' | 'info' = 'success';
 
   ngOnInit(): void {
     this.loadActiveTerminal();
@@ -564,6 +564,17 @@ export class PosComponent implements OnInit {
         this.activeVoucher = voucher;
         this.chargeAmount = null;
         this.externalInvoice = `FACT-${Date.now().toString().slice(-4)}`;
+        const wa = voucher.whatsapp_notification;
+        if (wa?.ok) {
+          this.feedbackType = 'success';
+          this.feedbackMessage = `Cobro autorizado (${voucher.voucher_number}). Notificación enviada por WhatsApp a ${wa.phone}.`;
+        } else if (wa?.attempted) {
+          this.feedbackType = 'info';
+          this.feedbackMessage = `Cobro autorizado (${voucher.voucher_number}), pero falló la notificación por WhatsApp: ${wa.error || 'OpenClaw no disponible'}.`;
+        } else if (wa) {
+          this.feedbackType = 'info';
+          this.feedbackMessage = `Cobro autorizado (${voucher.voucher_number}). ${wa.error || 'Cliente sin WhatsApp registrado'}.`;
+        }
         // Refresh client balances & transactions
         this.onSearchClient();
         this.loadRecentTransactions();

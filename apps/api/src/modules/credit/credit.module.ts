@@ -12,6 +12,7 @@ import { CreditLedgerService } from './credit-ledger.service';
 import { CreditController } from './credit.controller';
 import { RedisLockService } from './redis-lock.service';
 import { CryptoService } from '../../common/crypto/crypto.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { CryptoService } from '../../common/crypto/crypto.service';
       AuditLog,
       User,
     ]),
+    NotificationsModule,
   ],
   controllers: [CreditController],
   providers: [CreditLedgerService, RedisLockService, CryptoService],

@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ConflictException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import * as crypto from 'crypto';
@@ -23,6 +24,10 @@ import { CryptoService } from '../../common/crypto/crypto.service';
 import { RedisLockService } from './redis-lock.service';
 import { ChargeRequestDto } from './dto/charge-request.dto';
 import { PaymentRequestDto, VoidRequestDto, AdjustLimitDto } from './dto/other-requests.dto';
+import {
+  ConsumptionNotificationResult,
+  WhatsAppNotificationsService,
+} from '../notifications/whatsapp-notifications.service';
 
 export interface VoucherDetails {
   transaction_id: string;
@@ -59,6 +64,7 @@ export interface VoucherDetails {
   };
   signature_hash: string;
   verification_qr_payload: string;
+  whatsapp_notification?: ConsumptionNotificationResult;
 }
 
 @Injectable()
@@ -69,6 +75,7 @@ export class CreditLedgerService {
     private readonly dataSource: DataSource,
     private readonly cryptoService: CryptoService,
     private readonly redisLockService: RedisLockService,
+    @Optional() private readonly whatsappNotifications?: WhatsAppNotificationsService,
   ) {}
 
   /**
@@ -262,7 +269,26 @@ export class CreditLedgerService {
         },
       });
 
-      return this.mapToVoucherDetails(loaded);
+      const voucher = this.mapToVoucherDetails(loaded);
+      if (this.whatsappNotifications) {
+        try {
+          voucher.whatsapp_notification =
+            await this.whatsappNotifications.notifyPurchaseConsumption(loaded);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          this.logger.warn(
+            `Notificación WhatsApp de consumo falló para vale ${loaded.voucher_number}: ${msg}`,
+          );
+          voucher.whatsapp_notification = {
+            attempted: true,
+            ok: false,
+            phone: null,
+            error: msg,
+          };
+        }
+      }
+
+      return voucher;
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;

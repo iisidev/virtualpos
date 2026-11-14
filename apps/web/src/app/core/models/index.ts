@@ -215,6 +215,12 @@ export interface VoucherDetails {
   };
   signature_hash: string;
   verification_qr_payload: string;
+  whatsapp_notification?: {
+    attempted: boolean;
+    ok: boolean;
+    phone: string | null;
+    error?: string;
+  };
 }
 
 export interface AvailabilityTicket {
