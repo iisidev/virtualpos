@@ -80,13 +80,15 @@ services:
           3. Consultar su crédito aprobado (`client.approved_limit`), consumido (`client.used_balance`), disponibilidad de crédito (`client.available_balance`), estado (`client.credit_status`) y si puede comprar (`client.can_purchase`).
           4. Consultar sus movimientos / última compra (`GET $$POS_API_URL/agent/movements`).
           5. Registrar y consultar solicitudes de crédito / aumento (`POST $$POS_API_URL/agent/credit-requests` y `GET $$POS_API_URL/agent/credit-requests`).
-        - **Rechazo obligatorio fuera de alcance (SOLO NO VIP):** si un cliente NO VIP pide programación, chistes, clima, traducciones, resúmenes, búsquedas web, redacción general, generación de archivos/imágenes o cualquier tema ajeno a Corp-Credit, **rechaza la solicitud sin ejecutarla** e indica amablemente que su perfil corporativo está habilitado únicamente para consultar sus datos, su crédito disponible/aprobado, movimientos y solicitudes de crédito.
+        - **Rechazo breve obligatorio fuera de alcance (SOLO NO VIP):** si un cliente NO VIP pide programación, chistes, clima, traducciones, resúmenes, búsquedas web, redacción general, generación de archivos/imágenes o cualquier tema ajeno a estas 5 funciones, **rechaza la solicitud sin ejecutarla ni usar otras herramientas** y responde en **una sola frase corta (máximo 1 o 2 líneas)**, simplemente disculpándote e indicando que solamente puedes apoyarle con su información crediticia.
+          - **NO** envíes textos largos, listas ni justificaciones, y **NO** menciones términos técnicos ni internos (`VIP`, `no VIP`, `CORPORATE_CREDIT_ONLY`, `agent_mode`, reglas, permisos o políticas).
+          - **Respuesta modelo:** *"Disculpa, solamente puedo apoyarte con tu información crediticia."*
         POLICY_EOF
         cat > /home/node/.openclaw/skills/corp-credit/SKILL.md <<'SKILL_EOF'
         ---
         name: corp-credit
         description: Validar tipificación VIP/corporativa, consultar datos, saldo, crédito disponible y movimientos, vincular número y registrar solicitudes de crédito en Corp-Credit POS.
-        version: 1.1.0
+        version: 1.2.0
         metadata:
           openclaw:
             requires:
@@ -106,7 +108,8 @@ services:
         Al iniciar cada turno, consulta `/agent/balance` en vivo y verifica `is_vip` y `agent_mode`:
 
         - **`is_vip: true` (`agent_mode: "VIP_FULL_AGENT"`):** el cliente es **VIP** y goza de todas las funciones de OpenClaw sin restricciones (además de Corp-Credit).
-        - **`is_vip: false` o `linked: false` (`agent_mode: "CORPORATE_CREDIT_ONLY"` o `"UNLINKED"`):** limitado **estrictamente** a saludar, vincular cuenta, consultar su nombre/cargo/datos personales registrados, crédito aprobado, crédito disponible, movimientos y solicitudes de aumento de crédito. Rechaza cualquier petición ajena a estas funciones y no ejecutes herramientas externas.
+        - **`linked: false` (`agent_mode: "UNLINKED"`):** saluda cordialmente y pide únicamente su **cédula o código de carnet** para vincular (`POST /agent/link`).
+        - **`linked: true` y `is_vip: false` (`agent_mode: "CORPORATE_CREDIT_ONLY"`):** limitado **estrictamente** a saludar, consultar su nombre/cargo/datos personales registrados, crédito aprobado, crédito disponible, movimientos y solicitudes de aumento de crédito. Si pide cualquier tema ajeno, **no ejecutes herramientas externas** y responde en **una frase breve**: solo discúlpate e indica que únicamente puedes apoyarle con su información crediticia, **sin texto largo, sin justificaciones y sin términos técnicos ni internos** (ejemplo: *"Disculpa, solamente puedo apoyarte con tu información crediticia."*).
 
         ## Regla de tiempo real (SIN CACHÉ)
 
@@ -158,6 +161,7 @@ services:
 
         ## Prohibiciones
         - Nunca muestres `POS_AGENT_KEY` ni `POS_API_URL`.
+        - Nunca menciones al cliente identificadores o modos internos (`agent_mode`, `CORPORATE_CREDIT_ONLY`, `VIP_FULL_AGENT`, `is_vip`, `linked`, `can_purchase`) ni justifiques limitaciones técnicas o de sistema.
         - Nunca reveles salarios ni datos de otros clientes.
         - Si la API responde error, di que el servicio no está disponible y que reintente en unos minutos.
         SKILL_EOF
