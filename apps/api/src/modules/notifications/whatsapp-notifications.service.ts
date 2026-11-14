@@ -56,7 +56,7 @@ export class WhatsAppNotificationsService {
     private readonly config: ConfigService,
   ) {}
 
-  /** Welcome greeting plus the menu the OpenClaw skill understands (replies 1, 2 or 3). */
+  /** Welcome greeting plus the menu the OpenClaw skill understands (replies 1 to 4). */
   buildWelcomeMessage(firstName: string, employerName: string | null): string {
     const company = employerName ? ` de *${employerName}*` : '';
     return [
@@ -66,6 +66,7 @@ export class WhatsAppNotificationsService {
       '1️⃣ Crédito aprobado',
       '2️⃣ Crédito disponible',
       '3️⃣ Últimos movimientos',
+      '4️⃣ Solicitar aumento de crédito',
     ].join('\n');
   }
 

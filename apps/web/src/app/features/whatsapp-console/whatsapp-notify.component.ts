@@ -26,8 +26,8 @@ import {
         <h2>Notificar clientes por WhatsApp (OpenClaw)</h2>
       </div>
       <p class="card-desc">
-        Envía un saludo de bienvenida con el menú de consultas (crédito aprobado, crédito disponible y últimos
-        movimientos) usando el WhatsApp conectado en OpenClaw.
+        Envía un saludo de bienvenida con el menú de consultas (crédito aprobado, crédito disponible, últimos
+        movimientos y solicitudes de crédito) usando el WhatsApp conectado en OpenClaw.
       </p>
 
       <div class="notify-preview" *ngIf="preview">

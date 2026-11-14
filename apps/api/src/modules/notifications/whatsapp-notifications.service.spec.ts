@@ -39,7 +39,7 @@ describe('WhatsAppNotificationsService', () => {
     return { service, provider, auditRepo };
   }
 
-  it('builds welcome message with menu options 1, 2, 3', () => {
+  it('builds welcome message with menu options 1, 2, 3, 4', () => {
     const { service } = createService();
     const msg = service.buildWelcomeMessage('Isaac', 'Grupo Industrial');
     expect(msg).toContain('Isaac');
@@ -47,6 +47,7 @@ describe('WhatsAppNotificationsService', () => {
     expect(msg).toContain('1️⃣ Crédito aprobado');
     expect(msg).toContain('2️⃣ Crédito disponible');
     expect(msg).toContain('3️⃣ Últimos movimientos');
+    expect(msg).toContain('4️⃣ Solicitar aumento de crédito');
   });
 
   it('builds expected consumption message in Cordobas', () => {
