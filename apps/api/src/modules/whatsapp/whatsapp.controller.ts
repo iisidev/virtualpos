@@ -8,10 +8,13 @@ import {
   HttpStatus,
   ForbiddenException,
   Logger,
+  UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { WhatsAppService } from './whatsapp.service';
 import { Public } from '../../common/decorators/public.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { extractPhoneDigits } from '../../common/utils/phone.util';
 
 @Controller('whatsapp')
 export class WhatsAppController {
@@ -21,6 +24,22 @@ export class WhatsAppController {
     private readonly whatsappService: WhatsAppService,
     private readonly config: ConfigService,
   ) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Get('config')
+  getChannelConfig(): {
+    bot_number: string | null;
+    provider: string;
+    openclaw_configured: boolean;
+  } {
+    const rawNumber = this.config.get<string>('WHATSAPP_BOT_NUMBER') || '';
+    const digits = extractPhoneDigits(rawNumber);
+    return {
+      bot_number: digits.length >= 8 ? digits : null,
+      provider: this.config.get<string>('WHATSAPP_PROVIDER') || 'openclaw',
+      openclaw_configured: Boolean(this.config.get<string>('OPENCLAW_GATEWAY_URL')),
+    };
+  }
 
   /**
    * Meta Cloud API Webhook Verification Challenge
