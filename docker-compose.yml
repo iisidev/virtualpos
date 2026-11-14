@@ -55,8 +55,8 @@ services:
     command:
       - |
         mkdir -p /home/node/.openclaw/workspace
-        mkdir -p /home/node/.openclaw/workspace/skills/corp-credit
-        cat > /home/node/.openclaw/workspace/skills/corp-credit/SKILL.md <<'SKILL_EOF'
+        mkdir -p /home/node/.openclaw/skills/corp-credit
+        cat > /home/node/.openclaw/skills/corp-credit/SKILL.md <<'SKILL_EOF'
         ---
         name: corp-credit
         description: Consultar saldo, crédito disponible y movimientos de un cliente de Corp-Credit POS por WhatsApp, y vincular su número a su cédula o carnet.
