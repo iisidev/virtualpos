@@ -53,11 +53,11 @@
 
 .search-input-wrap:focus-within {
   border-color: var(--action-surface);
-  box-shadow: 0 0 0 3px rgb(194 65 12 / 14%);
+  box-shadow: 0 0 0 3px var(--focus-ring-tint);
 }
 
 .search-input-wrap:has(input.ui-input:focus-visible) {
-  outline: 3px solid var(--action-surface);
+  outline: 3px solid var(--navy-950);
   outline-offset: 2px;
 }
 

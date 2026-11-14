@@ -159,11 +159,11 @@
 .kiosk-input:focus:not(:focus-visible) {
   outline: 2px solid transparent;
   border-color: var(--action-surface);
-  box-shadow: 0 0 0 3px rgb(194 65 12 / 14%);
+  box-shadow: 0 0 0 3px var(--focus-ring-tint);
 }
 
 .kiosk-input:focus-visible {
-  outline: 3px solid var(--action-surface);
+  outline: 3px solid var(--navy-950);
   outline-offset: 2px;
   border-color: var(--action-surface);
 }
@@ -232,6 +232,16 @@
   padding: 24px 20px;
   text-align: center;
   margin-bottom: 18px;
+}
+
+.bento-card.amber .kiosk-balance-box {
+  background: var(--amber-subtle);
+  border-color: var(--warning-border);
+}
+
+.bento-card.red .kiosk-balance-box {
+  background: var(--red-subtle);
+  border-color: var(--danger-border);
 }
 
 .kiosk-balance-box .label {
