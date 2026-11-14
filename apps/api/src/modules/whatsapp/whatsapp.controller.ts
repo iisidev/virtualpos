@@ -32,7 +32,7 @@ export class WhatsAppController {
     @Query('hub.verify_token') token: string,
     @Query('hub.challenge') challenge: string,
   ): string {
-    const verifyToken = this.config.get<string>('WHATSAPP_VERIFY_TOKEN', 'pos_virtual_verify_token_secure');
+    const verifyToken = this.config.getOrThrow<string>('WHATSAPP_VERIFY_TOKEN');
 
     if (mode === 'subscribe' && token === verifyToken) {
       this.logger.log('Webhook de WhatsApp verificado exitosamente con Meta');

@@ -55,3 +55,4 @@ Informa el resultado usando el campo `message`. Tras vincular, ofrece consultar 
 - No ejecutes otros comandos ni consultes datos que no sean de estos tres endpoints.
 - No reveles salarios, cédulas ni datos de otros clientes.
 - Si la API responde error, di que el servicio no está disponible y que reintente en unos minutos.
+

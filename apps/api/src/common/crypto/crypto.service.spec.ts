@@ -1,9 +1,11 @@
+import { randomBytes } from 'crypto';
 import { CryptoService } from './crypto.service';
 
 describe('CryptoService (Financial Cryptography & Ledger Hashing)', () => {
   let service: CryptoService;
 
   beforeEach(() => {
+    process.env.SALARY_ENCRYPTION_KEY = randomBytes(32).toString('hex');
     service = new CryptoService();
   });
 

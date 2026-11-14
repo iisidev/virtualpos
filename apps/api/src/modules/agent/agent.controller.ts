@@ -42,3 +42,4 @@ export class AgentController {
     return this.agentService.linkPhone(body.phone, body.identifier);
   }
 }
+

@@ -12,7 +12,7 @@ export class MetaCloudProvider implements WhatsAppProviderInterface {
 
   constructor(private readonly config: ConfigService) {
     this.apiToken = this.config.get<string>('WHATSAPP_API_TOKEN', '');
-    this.botNumber = this.config.get<string>('WHATSAPP_BOT_NUMBER', '50588888888');
+    this.botNumber = this.config.getOrThrow<string>('WHATSAPP_BOT_NUMBER');
   }
 
   async sendMessage(to: string, message: string): Promise<boolean> {

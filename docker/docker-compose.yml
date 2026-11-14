@@ -9,15 +9,15 @@ services:
     container_name: corpcredit-postgres
     restart: always
     environment:
-      POSTGRES_USER: ${DB_USER:-pos_admin}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-pos_secure_pass_2026}
-      POSTGRES_DB: ${DB_NAME:-corp_credit_pos}
+      POSTGRES_USER: ${DB_USER:?DB_USER es obligatoria (definirla en el .env de Portainer)}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD es obligatoria (definirla en el .env de Portainer)}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME es obligatoria (definirla en el .env de Portainer)}
     ports:
-      - "${DB_PORT:-22432}:5432"
+      - "${DB_PORT:?DB_PORT es obligatoria (definirla en el .env de Portainer)}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-pos_admin} -d ${DB_NAME:-corp_credit_pos}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:?DB_USER es obligatoria (definirla en el .env de Portainer)} -d ${DB_NAME:?DB_NAME es obligatoria (definirla en el .env de Portainer)}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -31,13 +31,13 @@ services:
     image: redis:7-alpine
     container_name: corpcredit-redis
     restart: always
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secure_pass_2026}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD es obligatoria (definirla en el .env de Portainer)}
     ports:
-      - "${REDIS_PORT:-22379}:6379"
+      - "${REDIS_PORT:?REDIS_PORT es obligatoria (definirla en el .env de Portainer)}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secure_pass_2026}", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD es obligatoria (definirla en el .env de Portainer)}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -73,14 +73,9 @@ services:
           cfg.gateway.bind = "lan";
           cfg.gateway.port = 18789;
           cfg.gateway.auth = cfg.gateway.auth || {};
-          cfg.gateway.auth.token = process.env.OPENCLAW_GATEWAY_TOKEN || "pos_virtual_claw_token_2026";
+          cfg.gateway.auth.token = process.env.OPENCLAW_GATEWAY_TOKEN;
           cfg.gateway.controlUi = cfg.gateway.controlUi || {};
-          cfg.gateway.controlUi.allowedOrigins = [
-            "http://localhost:18789",
-            "http://127.0.0.1:18789",
-            "http://localhost:22088",
-            "http://100.122.35.118:22088"
-          ];
+          cfg.gateway.controlUi.allowedOrigins = process.env.OPENCLAW_ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean);
           cfg.memory = cfg.memory || {};
           cfg.memory.search = cfg.memory.search || {};
           cfg.memory.search.provider = "none";
@@ -100,13 +95,14 @@ services:
       OPENCLAW_GATEWAY_PORT: "18789"
       OPENCLAW_GATEWAY_BIND: "lan"
       OPENCLAW_GATEWAY_MODE: "local"
-      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:-pos_virtual_claw_token_2026}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:?OPENCLAW_GATEWAY_TOKEN es obligatoria (definirla en el .env de Portainer)}
       OPENCLAW_ALLOW_INSECURE_PRIVATE_WS: "1"
       OPENCLAW_DISABLE_BONJOUR: "1"
-      POS_API_URL: http://api:3000/api/v1
-      POS_AGENT_KEY: ${AGENT_API_KEY:-pos_agent_key_2026_change_me}
+      POS_API_URL: ${POS_API_URL:?POS_API_URL es obligatoria (definirla en el .env de Portainer)}
+      OPENCLAW_ALLOWED_ORIGINS: ${OPENCLAW_ALLOWED_ORIGINS:?OPENCLAW_ALLOWED_ORIGINS es obligatoria (definirla en el .env de Portainer)}
+      POS_AGENT_KEY: ${AGENT_API_KEY:?AGENT_API_KEY es obligatoria (definirla en el .env de Portainer)}
     ports:
-      - "${OPENCLAW_PORT:-22088}:18789"
+      - "${OPENCLAW_PORT:?OPENCLAW_PORT es obligatoria (definirla en el .env de Portainer)}:18789"
     volumes:
       - openclaw_data:/home/node/.openclaw
       - ./docker/openclaw/skills/corp-credit:/home/node/.openclaw/workspace/skills/corp-credit:ro
@@ -132,30 +128,33 @@ services:
       openclaw:
         condition: service_started
     ports:
-      - "${API_PORT:-22300}:3000"
+      - "${API_PORT:?API_PORT es obligatoria (definirla en el .env de Portainer)}:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
       API_PREFIX: api/v1
-      JWT_SECRET: ${JWT_SECRET:-corp_credit_jwt_super_secret_key_2026_finance}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET es obligatoria (definirla en el .env de Portainer)}
       JWT_EXPIRES_IN: 24h
-      SALARY_ENCRYPTION_KEY: ${SALARY_ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef}
+      SALARY_ENCRYPTION_KEY: ${SALARY_ENCRYPTION_KEY:?SALARY_ENCRYPTION_KEY es obligatoria (definirla en el .env de Portainer)}
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: ${DB_USER:-pos_admin}
-      DB_PASSWORD: ${DB_PASSWORD:-pos_secure_pass_2026}
-      DB_NAME: ${DB_NAME:-corp_credit_pos}
+      DB_USER: ${DB_USER:?DB_USER es obligatoria (definirla en el .env de Portainer)}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD es obligatoria (definirla en el .env de Portainer)}
+      DB_NAME: ${DB_NAME:?DB_NAME es obligatoria (definirla en el .env de Portainer)}
       DB_SYNCHRONIZE: "true"
       DB_LOGGING: "false"
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secure_pass_2026}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD es obligatoria (definirla en el .env de Portainer)}
       WHATSAPP_PROVIDER: openclaw
-      WHATSAPP_BOT_NUMBER: ${WHATSAPP_BOT_NUMBER:-50588888888}
-      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-pos_virtual_verify_token_secure}
+      WHATSAPP_BOT_NUMBER: ${WHATSAPP_BOT_NUMBER:?WHATSAPP_BOT_NUMBER es obligatoria (definirla en el .env de Portainer)}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:?WHATSAPP_VERIFY_TOKEN es obligatoria (definirla en el .env de Portainer)}
       OPENCLAW_GATEWAY_URL: http://openclaw:18789
-      OPENCLAW_API_KEY: ${OPENCLAW_GATEWAY_TOKEN:-pos_virtual_claw_token_2026}
-      AGENT_API_KEY: ${AGENT_API_KEY:-pos_agent_key_2026_change_me}
+      OPENCLAW_API_KEY: ${OPENCLAW_GATEWAY_TOKEN:?OPENCLAW_GATEWAY_TOKEN es obligatoria (definirla en el .env de Portainer)}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?ADMIN_USERNAME es obligatoria (definirla en el .env de Portainer)}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD es obligatoria (definirla en el .env de Portainer)}
+      ADMIN_RESET_PASSWORD: ${ADMIN_RESET_PASSWORD:-false}
+      AGENT_API_KEY: ${AGENT_API_KEY:?AGENT_API_KEY es obligatoria (definirla en el .env de Portainer)}
     networks:
       - corpcredit-net
 
@@ -171,7 +170,7 @@ services:
     depends_on:
       - api
     ports:
-      - "${WEB_PORT:-22080}:80"
+      - "${WEB_PORT:?WEB_PORT es obligatoria (definirla en el .env de Portainer)}:80"
     networks:
       - corpcredit-net
 

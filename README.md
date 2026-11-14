@@ -294,10 +294,10 @@ El sistema se auto-inicializa en el primer arranque con los siguientes perfiles:
 
 | Usuario | Contraseña | Rol | Acceso |
 |---|---|---|---|
-| `caja1` | `caja123` | `CASHIER` | Terminal POS Virtual, Escaneo, Cobros y Reimpresión |
-| `manager` | `manager123` | `CREDIT_MANAGER` | Gestión de Clientes, Salarios Cifrados, Importación Masiva, Solicitudes |
-| `admin` | `admin123` | `SUPER_ADMIN` | Control Total del Sistema |
-| `auditor` | `auditor123` | `AUDITOR` | Lectura de Ledger y Bitácoras de Auditoría |
+| `caja1` | (definida desde el panel de administración) | `CASHIER` | Terminal POS Virtual, Escaneo, Cobros y Reimpresión |
+| `manager` | (definida desde el panel de administración) | `CREDIT_MANAGER` | Gestión de Clientes, Salarios Cifrados, Importación Masiva, Solicitudes |
+| `admin` | (definida desde el panel de administración) | `SUPER_ADMIN` | Control Total del Sistema |
+| `auditor` | (definida desde el panel de administración) | `AUDITOR` | Lectura de Ledger y Bitácoras de Auditoría |
 
 ### Clientes de Prueba Pre-cargados para Escaneo (Caja o Kiosco):
 * `001-121092-0000X` (Juan Pérez, Límite: C$ 15,000, Disponible: C$ 11,500 - **Verde**)

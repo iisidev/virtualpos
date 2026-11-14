@@ -8,6 +8,7 @@ import { Company } from '../../database/entities/company.entity';
 import { CashRegister } from '../../database/entities/cash-register.entity';
 import { UserRole, CompanyStatus, CashRegisterStatus } from '../../common/enums';
 import { LoginDto, AuthResponseDto } from './dto/login.dto';
+import { requireEnv } from '../../common/config/require-env';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -126,68 +127,36 @@ export class AuthService implements OnModuleInit {
         await this.cashRegisterRepository.save(cashRegister);
       }
 
-      // 4. Seed / Synchronize System Users
-      const saltRounds = 10;
-      const defaultUsers = [
-        {
-          username: 'admin',
-          password: 'admin123',
-          full_name: 'Administrador Maestro del Sistema',
+      // 4. Bootstrap the first administrator from environment variables (no hardcoded credentials).
+      //    Other users are managed from the Admin panel. Existing users are never modified,
+      //    unless ADMIN_RESET_PASSWORD=true is set explicitly.
+      const adminUsername = requireEnv('ADMIN_USERNAME').trim().toLowerCase();
+      const adminPassword = requireEnv('ADMIN_PASSWORD');
+      const resetPassword = process.env.ADMIN_RESET_PASSWORD === 'true';
+
+      const existingAdmin = await this.userRepository.findOne({
+        where: { username: adminUsername },
+      });
+
+      if (!existingAdmin) {
+        const adminEntity = this.userRepository.create({
+          username: adminUsername,
+          password_hash: await bcrypt.hash(adminPassword, 10),
+          full_name: process.env.ADMIN_FULL_NAME?.trim() || 'Administrador del Sistema',
           role: UserRole.SUPER_ADMIN,
           company_id: null,
-        },
-        {
-          username: 'manager',
-          password: 'manager123',
-          full_name: 'Gerente de Créditos y Cobranzas',
-          role: UserRole.CREDIT_MANAGER,
-          company_id: savedEmployer.id,
-        },
-        {
-          username: 'caja1',
-          password: 'caja123',
-          full_name: 'Cajero Principal Tienda',
-          role: UserRole.CASHIER,
-          company_id: savedMerchant.id,
-        },
-        {
-          username: 'auditor',
-          password: 'auditor123',
-          full_name: 'Auditor Financiero Externo',
-          role: UserRole.AUDITOR,
-          company_id: null,
-        },
-      ];
-
-      for (const u of defaultUsers) {
-        const existing = await this.userRepository.findOne({
-          where: { username: u.username },
+          is_active: true,
+          created_by: 'SYSTEM_SEED',
         });
-
-        const newHash = await bcrypt.hash(u.password, saltRounds);
-
-        if (!existing) {
-          const userEntity = this.userRepository.create({
-            username: u.username,
-            password_hash: newHash,
-            full_name: u.full_name,
-            role: u.role,
-            company_id: u.company_id,
-            is_active: true,
-            created_by: 'SYSTEM_SEED',
-          });
-          await this.userRepository.save(userEntity);
-          this.logger.log(`Usuario semilla '${u.username}' creado con éxito.`);
-        } else {
-          // Guarantee known password hash and active state for demo accounts
-          existing.password_hash = newHash;
-          existing.is_active = true;
-          existing.role = u.role;
-          await this.userRepository.save(existing);
-        }
+        await this.userRepository.save(adminEntity);
+        this.logger.log(`Administrador inicial '${adminUsername}' creado desde variables de entorno.`);
+      } else if (resetPassword) {
+        existingAdmin.password_hash = await bcrypt.hash(adminPassword, 10);
+        existingAdmin.is_active = true;
+        existingAdmin.role = UserRole.SUPER_ADMIN;
+        await this.userRepository.save(existingAdmin);
+        this.logger.log(`Contraseña del administrador '${adminUsername}' restablecida desde variables de entorno.`);
       }
-
-      this.logger.log('✅ Usuarios del sistema verificados y listos para login: admin, manager, caja1, auditor');
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       this.logger.error(`Error en seed de datos iniciales: ${errorMsg}`);
