@@ -9,10 +9,11 @@ export class RedisLockService {
   private readonly fallbackMemoryLocks = new Map<string, number>();
 
   constructor(private readonly config: ConfigService) {
+    const host = this.config.getOrThrow<string>('REDIS_HOST');
+    const port = Number(this.config.getOrThrow<string>('REDIS_PORT'));
+    const password = this.config.getOrThrow<string>('REDIS_PASSWORD');
+
     try {
-      const host = this.config.get<string>('REDIS_HOST', 'localhost');
-      const port = Number(this.config.get<number>('REDIS_PORT', 6379));
-      const password = this.config.get<string>('REDIS_PASSWORD', '');
 
       this.client = new Redis({
         host,

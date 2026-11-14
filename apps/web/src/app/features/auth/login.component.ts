@@ -62,24 +62,6 @@ import { AuthService } from '../../core/services/auth.service';
             <span *ngIf="loading"><i class="spinner loading icon" aria-hidden="true"></i> Autenticando...</span>
           </button>
         </form>
-
-        <div class="demo-accounts">
-          <div class="demo-title">Accesos Rápidos Demo:</div>
-          <div class="demo-chips">
-            <button type="button" class="demo-chip" (click)="fill('caja1', 'caja123')">
-              <i class="shopping cart icon" aria-hidden="true"></i> Cajero
-            </button>
-            <button type="button" class="demo-chip" (click)="fill('manager', 'manager123')">
-              <i class="chart bar icon" aria-hidden="true"></i> Gerente
-            </button>
-            <button type="button" class="demo-chip" (click)="fill('admin', 'admin123')">
-              <i class="shield alternate icon" aria-hidden="true"></i> Admin
-            </button>
-            <button type="button" class="demo-chip" (click)="fill('auditor', 'auditor123')">
-              <i class="balance scale icon" aria-hidden="true"></i> Auditor
-            </button>
-          </div>
-        </div>
       </div>
     </main>
   `,
@@ -89,16 +71,10 @@ export class LoginComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  username = 'caja1';
-  password = 'caja123';
+  username = '';
+  password = '';
   loading = false;
   errorMessage = '';
-
-  fill(u: string, p: string): void {
-    this.username = u;
-    this.password = p;
-    this.errorMessage = '';
-  }
 
   onSubmit(): void {
     if (!this.username || !this.password) return;

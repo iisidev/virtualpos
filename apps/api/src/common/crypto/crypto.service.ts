@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { requireEnv } from '../config/require-env';
 
 @Injectable()
 export class CryptoService {
@@ -7,8 +8,7 @@ export class CryptoService {
   private readonly key: Buffer;
 
   constructor() {
-    // 32 bytes key from env or deterministic fallback for development
-    const rawKey = process.env.SALARY_ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef';
+    const rawKey = requireEnv('SALARY_ENCRYPTION_KEY');
     this.key = crypto.createHash('sha256').update(rawKey).digest();
   }
 

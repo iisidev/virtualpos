@@ -11,12 +11,8 @@ export class OpenClawProvider implements WhatsAppProviderInterface {
   private readonly apiKey: string;
 
   constructor(private readonly config: ConfigService) {
-    this.gatewayUrl =
-      process.env.OPENCLAW_GATEWAY_URL ||
-      this.config.get<string>('OPENCLAW_GATEWAY_URL', 'http://openclaw:8080/v1/messages');
-    this.apiKey =
-      process.env.OPENCLAW_API_KEY ||
-      this.config.get<string>('OPENCLAW_API_KEY', 'claw_sec_token_999');
+    this.gatewayUrl = this.config.getOrThrow<string>('OPENCLAW_GATEWAY_URL');
+    this.apiKey = this.config.getOrThrow<string>('OPENCLAW_API_KEY');
   }
 
   async sendMessage(to: string, message: string): Promise<boolean> {

@@ -59,7 +59,7 @@ export class KioskService {
       order: { created_at: 'DESC' },
     });
 
-    const botNumber = this.config.get<string>('WHATSAPP_BOT_NUMBER', '50588888888');
+    const botNumber = this.config.getOrThrow<string>('WHATSAPP_BOT_NUMBER');
     const waText = encodeURIComponent(`HOLA CONSULTA CEDULA ${client.national_id}`);
     const whatsappUrl = `https://wa.me/${botNumber}?text=${waText}`;
 
