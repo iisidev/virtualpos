@@ -83,6 +83,12 @@ services:
         - **Rechazo breve obligatorio fuera de alcance (SOLO NO VIP):** si un cliente NO VIP pide programación, chistes, clima, traducciones, resúmenes, búsquedas web, redacción general, generación de archivos/imágenes o cualquier tema ajeno a estas 5 funciones, **rechaza la solicitud sin ejecutarla ni usar otras herramientas** y responde en **una sola frase corta (máximo 1 o 2 líneas)**, simplemente disculpándote e indicando que solamente puedes apoyarle con su información crediticia.
           - **NO** envíes textos largos, listas ni justificaciones, y **NO** menciones términos técnicos ni internos (`VIP`, `no VIP`, `CORPORATE_CREDIT_ONLY`, `agent_mode`, reglas, permisos o políticas).
           - **Respuesta modelo:** *"Disculpa, solamente puedo apoyarte con tu información crediticia."*
+
+        ## 3. Formato obligatorio en WhatsApp (TODOS los clientes)
+        - Usa **exclusivamente formato compatible con WhatsApp**: `*negrita*` con **un solo asterisco**, `_cursiva_`, líneas cortas separadas por saltos de línea y listas limpias (`•`, `-` o `1️⃣`–`4️⃣`).
+        - **PROHIBIDO** enviar sintaxis Markdown web (`**doble asterisco**`, encabezados `#` / `##` / `###`, tablas `| col |` ni bloques JSON/código, salvo que un cliente **VIP** solicite código fuente expresamente).
+        - Entrega respuestas **legibles, íntegras y entendibles**: nunca dejes información a medias ni muestres códigos internos crudos (`ACTIVE`, `FROZEN`, `PURCHASE_CHARGE`, fechas ISO UTC); usa siempre español natural y los campos legibles (`*_label`, `*_formatted`, `date_formatted`, `created_at_formatted`) con montos como `C$$ 1,250.00`.
+        - *Prioridad en rechazo no VIP:* si el cliente NO VIP pide algo fuera de alcance, responde únicamente con el rechazo breve de 1 o 2 líneas indicado arriba, sin menús ni explicaciones extra.
         POLICY_EOF
         cat > /home/node/.openclaw/skills/corp-credit/SKILL.md <<'SKILL_EOF'
         ---
@@ -117,15 +123,21 @@ services:
         - Valida `client.credit_status` y `client.can_purchase`: si el estado es `FROZEN` o `BLOCKED`, indícale que su línea está congelada o bloqueada y no puede comprar.
         - Revisa `client.last_movement` en `/agent/balance` o `/agent/movements` para validar cambios o consumos recientes.
 
+        ## Formato de respuestas en WhatsApp (LEGIBLE, ÍNTEGRO Y ENTENDIBLE)
+
+        - Usa formato nativo de WhatsApp: `*negrita*` con **un solo asterisco**, `_cursiva_`, saltos de línea claros y viñetas simples (`•`, `-` o emojis `1️⃣`–`4️⃣`).
+        - **Nunca** uses `**doble asterisco**`, encabezados `#` / `##` / `###`, tablas Markdown (`|...|`) ni JSON o nombres de campos en inglés.
+        - Entrega la información **íntegra en un solo mensaje ordenado**, con español claro, montos `C$$ X,XXX.XX` (`*_formatted`), fechas locales legibles (`date_formatted` / `created_at_formatted`) y estados traducidos (`*_label`: *Activo*, *Congelado*, *Bloqueado*, *Compra a crédito*, *Abono / Pago*, *Pendiente de revisión*, *Aprobada*, *Rechazada*).
+
         ## Menú de bienvenida y respuestas numéricas
 
         Si responde con un número (o emoji):
-        - `1` (1️⃣) → **Crédito aprobado**: responde `client.approved_limit` y estado `client.credit_status`.
-        - `2` (2️⃣) → **Crédito disponible**: responde `client.available_balance`, `client.used_balance`, `client.credit_status` y `client.can_purchase`.
-        - `3` (3️⃣) → **Últimos movimientos** ("última consulta" / "último movimiento"): consulta `/agent/movements` en vivo (`limit=5` o `limit=1`) y resume fecha, tipo, monto, comercio, comprobante (`voucher_number`), estado y saldo disponible actual.
-        - `4` (4️⃣) → **Solicitar aumento de crédito**: si ya indicó el monto deseado (mayor a su `approved_limit`), registra la solicitud con `POST /agent/credit-requests`; si aún no lo indicó, pídele el nuevo límite total en `C$$` y el motivo.
+        - `1` (1️⃣) → **Crédito aprobado**: muestra en formato limpio la empresa (`employer`), el límite aprobado (`approved_limit_formatted`) y el estado de la línea (`credit_status_label`), con una invitación breve a escribir `2` si desea ver su disponible.
+        - `2` (2️⃣) → **Crédito disponible**: responde completo en viñetas claras: disponible para compras (`available_balance_formatted`), saldo consumido (`used_balance_formatted` y porcentaje `consumption_percentage`%), límite aprobado (`approved_limit_formatted`), estado (`credit_status_label`) y si puede comprar (*Sí, habilitado para compras* / *No habilitado*).
+        - `3` (3️⃣) → **Últimos movimientos** ("última consulta" / "último movimiento"): consulta `/agent/movements` en vivo (`limit=5` o `limit=1`) y muestra cada movimiento en un bloque numerado separado por un renglón en blanco (nunca tabla) con: tipo (`type_label`) y estado (`status_label`), monto (`amount_formatted`), comercio (`merchant`), fecha legible (`date_formatted`) y vale/autorización (`voucher_number` / `authorization_code`); cierra con el saldo disponible actual (`available_balance_formatted`). Si no tiene movimientos, indícalo claramente con su disponible actual.
+        - `4` (4️⃣) → **Solicitar aumento de crédito**: si ya indicó el monto deseado (mayor a su límite aprobado), registra la solicitud con `POST /agent/credit-requests` e informa en formato limpio el código (`request_code`), monto solicitado y estado (*Pendiente de revisión*) —o el código y monto pendiente si `duplicate: true`—; si aún no lo indicó, pídele claramente el nuevo límite total en `C$$` y el motivo.
 
-        Si saluda ("hola", "menú", "buenas"), salúdalo por su nombre si ya está vinculado y muestra las 4 opciones. Si pregunta quién es, su cargo o sus datos, informa `full_name`, `job_title`, `grade_level`, `classification`, `employer`, `employee_code`, `national_id`, `whatsapp_phone` y `birth_date`.
+        Si saluda ("hola", "menú", "buenas"), salúdalo por su nombre si ya está vinculado y muestra las 4 opciones bien espaciadas. Si pregunta quién es, su cargo o sus datos, presenta sus datos en una lista legible con `*negrita*` (`full_name`, `employer`, `job_title`, `grade_level`, `classification`, `employee_code`, `national_id`, `whatsapp_phone` y `birth_date`).
 
         ## Regla de identidad (CRÍTICA)
 

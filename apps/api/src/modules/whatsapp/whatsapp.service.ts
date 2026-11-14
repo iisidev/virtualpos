@@ -9,9 +9,19 @@ import {
 } from '../../database/entities';
 import {
   ChannelType,
+  CreditStatus,
   IncreaseRequestStatus,
   TransactionStatus,
+  TransactionType,
 } from '../../common/enums';
+import {
+  CREDIT_STATUS_LABELS,
+  TRANSACTION_STATUS_LABELS,
+  TRANSACTION_TYPE_LABELS,
+  formatCordoba,
+  formatWhatsAppDateTime,
+  translateEnumLabel,
+} from '../../common/utils/whatsapp-format.util';
 import { OpenClawProvider } from './providers/openclaw.provider';
 import { WhatsAppProviderInterface } from './interfaces/whatsapp-provider.interface';
 import { classifyWhatsAppIntent, WhatsAppIntent } from './whatsapp-intent.classifier';
@@ -70,12 +80,12 @@ export class WhatsAppService {
 
     switch (intent) {
       case 'CHECK_APPROVED': {
-        const approvedFormatted = Number(client.approved_limit).toLocaleString('es-NI', {
-          minimumFractionDigits: 2,
-        });
+        const statusLabel = translateEnumLabel(client.credit_status, CREDIT_STATUS_LABELS);
         const reply = `🏦 *Límite de Crédito Aprobado*
+
 Estimado(a) *${client.first_name}*, su límite total autorizado por *${client.employer_company?.name || 'su empresa'}* es de:
-👉 *C$ ${approvedFormatted}*
+👉 *${formatCordoba(client.approved_limit)}*
+🛡️ Estado de línea: *${statusLabel}*
 
 _Para consultar su saldo disponible para compras, escriba *2*._`;
         await this.provider.sendMessage(cleanPhone, reply);
@@ -86,16 +96,23 @@ _Para consultar su saldo disponible para compras, escriba *2*._`;
         const available = Number(client.available_balance);
         const used = Number(client.used_balance);
         const approved = Number(client.approved_limit);
-        const pct = approved > 0 ? ((used / approved) * 100).toFixed(1) : '0';
+        const pct = approved > 0 ? ((used / approved) * 100).toFixed(1) : '0.0';
+        const statusLabel = translateEnumLabel(client.credit_status, CREDIT_STATUS_LABELS);
+        const canBuy =
+          client.credit_status === CreditStatus.ACTIVE && available > 0
+            ? 'Sí, habilitado para compras'
+            : 'No habilitado en este momento';
 
-        const reply = `🟢 *Disponibilidad de Crédito Inmediata*
+        const reply = `🟢 *Disponibilidad de Crédito*
 👤 *${client.first_name} ${client.last_name}*
 ━━━━━━━━━━━━━━━━━━━━━
-💵 *DISPONIBLE PARA COMPRAS:* *C$ ${available.toLocaleString('es-NI', { minimumFractionDigits: 2 })}*
-📊 Saldo Consumido: C$ ${used.toLocaleString('es-NI', { minimumFractionDigits: 2 })} (${pct}%)
-🛡️ Estado de Línea: *${client.credit_status}*
+💵 *Disponible para compras:* *${formatCordoba(available)}*
+📊 *Saldo consumido:* ${formatCordoba(used)} (${pct}%)
+🏦 *Límite aprobado:* ${formatCordoba(approved)}
+🛡️ *Estado de línea:* *${statusLabel}*
+🛒 *Puede comprar:* ${canBuy}
 ━━━━━━━━━━━━━━━━━━━━━
-_Puede utilizar su cédula o código de carnet *${client.employee_code}* en las cajas de nuestras tiendas afiliadas._`;
+_Puede presentar su cédula o código de carnet *${client.employee_code}* en las cajas de nuestras tiendas afiliadas._`;
         await this.provider.sendMessage(cleanPhone, reply);
         return reply;
       }
@@ -108,19 +125,22 @@ _Puede utilizar su cédula o código de carnet *${client.employee_code}* en las 
         });
 
         if (!lastTx) {
-          const reply = `ℹ️ Estimado(a) *${client.first_name}*, aún no registra consumos en el sistema. Su crédito disponible está al 100%.`;
+          const reply = `ℹ️ Estimado(a) *${client.first_name}*, aún no registra consumos en el sistema. Su crédito disponible actual es de *${formatCordoba(client.available_balance)}*.`;
           await this.provider.sendMessage(cleanPhone, reply);
           return reply;
         }
 
+        const statusLabel = translateEnumLabel(lastTx.status, TRANSACTION_STATUS_LABELS);
         const reply = `🧾 *Detalle de su Última Compra*
 ━━━━━━━━━━━━━━━━━━━━━
-🏪 Comercio: *${lastTx.merchant_company?.name || 'Tienda Afiliada'}*
-📅 Fecha: ${new Date(lastTx.created_at).toLocaleString('es-NI')}
-🔢 No. Autorización: *${lastTx.authorization_code}*
-🧾 Factura Externa: *${lastTx.external_invoice_number}*
-💵 Monto Cobrado: *C$ ${Number(lastTx.amount).toLocaleString('es-NI', { minimumFractionDigits: 2 })}*
-🟢 Saldo Disponible tras compra: C$ ${Number(lastTx.new_available_balance).toLocaleString('es-NI', { minimumFractionDigits: 2 })}
+🏪 *Comercio:* ${lastTx.merchant_company?.name || 'Tienda Afiliada'}
+📅 *Fecha:* ${formatWhatsAppDateTime(lastTx.created_at)}
+🧾 *No. Vale:* ${lastTx.voucher_number}
+🔢 *Autorización:* ${lastTx.authorization_code}
+📄 *Factura:* ${lastTx.external_invoice_number}
+💵 *Monto cobrado:* *${formatCordoba(lastTx.amount)}*
+✅ *Estado:* ${statusLabel}
+🟢 *Disponible tras compra:* *${formatCordoba(lastTx.new_available_balance)}*
 ━━━━━━━━━━━━━━━━━━━━━`;
         await this.provider.sendMessage(cleanPhone, reply);
         return reply;
@@ -135,17 +155,33 @@ _Puede utilizar su cédula o código de carnet *${client.employee_code}* en las 
         });
 
         if (history.length === 0) {
-          const reply = `ℹ️ No registra movimientos recientes en su estado de cuenta.`;
+          const reply = `ℹ️ Estimado(a) *${client.first_name}*, no registra movimientos recientes en su estado de cuenta.\n🟢 *Disponible actual:* *${formatCordoba(client.available_balance)}*`;
           await this.provider.sendMessage(cleanPhone, reply);
           return reply;
         }
 
-        let reply = `📜 *Últimos Movimientos de Cuenta:*\n━━━━━━━━━━━━━━━━━━━━━\n`;
-        for (const h of history) {
-          const sign = h.transaction_type === 'PURCHASE_CHARGE' ? '🔴 -' : '🟢 +';
-          reply += `${sign} C$ ${Number(h.amount).toFixed(2)} | ${h.transaction_type}\n   📅 ${new Date(h.created_at).toLocaleDateString('es-NI')} | Auth: ${h.authorization_code}\n`;
-        }
-        reply += `━━━━━━━━━━━━━━━━━━━━━\nSaldo disponible actual: *C$ ${Number(client.available_balance).toLocaleString('es-NI', { minimumFractionDigits: 2 })}*`;
+        const blocks = history.map((h, idx) => {
+          const isCharge = h.transaction_type === TransactionType.PURCHASE_CHARGE;
+          const sign = isCharge ? '🔴 -' : '🟢 +';
+          const typeLabel = translateEnumLabel(h.transaction_type, TRANSACTION_TYPE_LABELS);
+          const statusLabel = translateEnumLabel(h.status, TRANSACTION_STATUS_LABELS);
+          const merchant = h.merchant_company?.name || 'Comercio Afiliado';
+          return [
+            `*${idx + 1}. ${typeLabel}* (${statusLabel})`,
+            `   ${sign}*${formatCordoba(h.amount)}*`,
+            `   🏪 ${merchant}`,
+            `   📅 ${formatWhatsAppDateTime(h.created_at)}`,
+            `   🧾 Vale: ${h.voucher_number} · Aut.: ${h.authorization_code}`,
+          ].join('\n');
+        });
+
+        const reply = [
+          '📜 *Últimos Movimientos de Cuenta*',
+          '━━━━━━━━━━━━━━━━━━━━━',
+          blocks.join('\n\n'),
+          '━━━━━━━━━━━━━━━━━━━━━',
+          `🟢 *Saldo disponible actual:* *${formatCordoba(client.available_balance)}*`,
+        ].join('\n');
 
         await this.provider.sendMessage(cleanPhone, reply);
         return reply;
@@ -164,9 +200,12 @@ _Puede utilizar su cédula o código de carnet *${client.employee_code}* en las 
         await this.increaseRequestRepository.save(request);
 
         const reply = `📝 *Solicitud de Aumento de Crédito Registrada*
-Estimado(a) *${client.first_name}*, su solicitud para ajustar su límite a *C$ ${requestedAmt.toLocaleString('es-NI', { minimumFractionDigits: 2 })}* ha sido enviada al Comité de Crédito de *${client.employer_company?.name || 'su empresa'}*.
-📌 No. de Gestión: *REQ-${request.id.substring(0, 8).toUpperCase()}*
-Le notificaremos por este mismo medio tan pronto sea evaluada.`;
+
+Estimado(a) *${client.first_name}*, su solicitud para ajustar su límite a *${formatCordoba(requestedAmt)}* ha sido enviada al Comité de Crédito de *${client.employer_company?.name || 'su empresa'}*.
+📌 *No. de Gestión:* REQ-${request.id.substring(0, 8).toUpperCase()}
+⏳ *Estado:* Pendiente de revisión
+
+_Le notificaremos por este mismo medio tan pronto sea evaluada._`;
 
         await this.provider.sendMessage(cleanPhone, reply);
         return reply;

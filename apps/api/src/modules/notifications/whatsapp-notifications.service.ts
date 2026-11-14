@@ -12,6 +12,7 @@ import { Repository } from 'typeorm';
 import { AuditLog, ClientCreditProfile, CreditTransaction } from '../../database/entities';
 import { CreditStatus } from '../../common/enums';
 import { toWhatsAppE164 } from '../../common/utils/phone.util';
+import { formatAmount } from '../../common/utils/whatsapp-format.util';
 import { OpenClawProvider } from '../whatsapp/providers/openclaw.provider';
 
 export interface SendResult {
@@ -74,14 +75,6 @@ export class WhatsAppNotificationsService {
     return { message: this.buildWelcomeMessage('Nombre', 'su empresa') };
   }
 
-  private formatMoney(value: number | string): string {
-    const num = Number(value);
-    return (Number.isFinite(num) ? num : 0).toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  }
-
   /** Builds the real-time WhatsApp message sent immediately after an approved purchase charge. */
   buildConsumptionMessage(
     merchantName: string,
@@ -97,8 +90,8 @@ export class WhatsAppNotificationsService {
     ].filter(Boolean);
     const refSuffix = refs.length > 0 ? `\n${refs.join(' · ')}` : '';
     return (
-      `Se ha registrado un crédito en *${empresa}* por el monto de *C$ ${this.formatMoney(amount)}* ` +
-      `consumiendo del crédito, quedando un monto disponible de *C$ ${this.formatMoney(availableBalance)}*.` +
+      `Se ha registrado un crédito en *${empresa}* por el monto de *C$ ${formatAmount(amount)}* ` +
+      `consumiendo del crédito, quedando un monto disponible de *C$ ${formatAmount(availableBalance)}*.` +
       refSuffix
     );
   }

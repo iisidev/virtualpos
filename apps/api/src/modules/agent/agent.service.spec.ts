@@ -127,6 +127,9 @@ describe('phone.util, classification.util & AgentService', () => {
     expect(res.agent_mode).toBe('VIP_FULL_AGENT');
     expect(res.client?.classification).toBe('VIP');
     expect(res.client?.job_title).toBe('Director TI');
+    expect(res.client?.credit_status_label).toBe('Activo');
+    expect(res.client?.approved_limit_formatted).toBe('C$ 15,000.00');
+    expect(res.client?.available_balance_formatted).toBe('C$ 13,800.00');
     expect(res.client?.can_purchase).toBe(true);
   });
 
@@ -170,8 +173,13 @@ describe('phone.util, classification.util & AgentService', () => {
     expect(res.agent_mode).toBe('CORPORATE_CREDIT_ONLY');
     expect(res.client?.job_title).toBe('Analista Contable');
     expect(res.client?.credit_status).toBe(CreditStatus.FROZEN);
+    expect(res.client?.credit_status_label).toBe('Congelado');
     expect(res.client?.can_purchase).toBe(false);
     expect(res.client?.last_movement?.voucher_number).toBe('VALE-99');
+    expect(res.client?.last_movement?.type_label).toBe('Compra a crédito');
+    expect(res.client?.last_movement?.status_label).toBe('Aprobada');
+    expect(res.client?.last_movement?.amount_formatted).toBe('C$ 250.00');
+    expect(res.client?.last_movement?.date_formatted).toBe('13/11/2026, 03:50 a. m.');
   });
 
   it('creates a WhatsApp credit increase request for a linked non-VIP client and blocks duplicates', async () => {
