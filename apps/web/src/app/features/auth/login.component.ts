@@ -9,27 +9,28 @@ import { AuthService } from '../../core/services/auth.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="login-page">
+    <main class="login-page">
       <div class="login-card bento-card">
         <div class="login-header">
-          <div class="icon-circle">
-            <i class="shield alternate icon" aria-hidden="true"></i>
+          <div class="icon-circle" aria-hidden="true">
+            <i class="shield alternate icon"></i>
           </div>
-          <h2>CORP-CREDIT POS</h2>
+          <h1>POS VIRTUAL</h1>
           <p>Ingreso Seguro a la Plataforma Transaccional</p>
         </div>
 
-        <div *ngIf="errorMessage" class="ui negative message login-error-alert">
+        <div *ngIf="errorMessage" class="ui negative message login-error-alert" role="alert">
           <div class="header">Error de Acceso</div>
           <p>{{ errorMessage }}</p>
         </div>
 
         <form (ngSubmit)="onSubmit()" class="login-form">
           <div class="form-group">
-            <label>Usuario</label>
+            <label for="login-username">Usuario</label>
             <div class="input-icon-wrapper">
               <i class="user outline icon" aria-hidden="true"></i>
               <input
+                id="login-username"
                 type="text"
                 [(ngModel)]="username"
                 name="username"
@@ -41,14 +42,15 @@ import { AuthService } from '../../core/services/auth.service';
           </div>
 
           <div class="form-group">
-            <label>Contraseña</label>
+            <label for="login-password">Contraseña</label>
             <div class="input-icon-wrapper">
               <i class="lock icon" aria-hidden="true"></i>
               <input
+                id="login-password"
                 type="password"
                 [(ngModel)]="password"
                 name="password"
-                placeholder="••••••••"
+                placeholder="Ingrese su contraseña"
                 required
                 autocomplete="current-password"
               />
@@ -57,30 +59,29 @@ import { AuthService } from '../../core/services/auth.service';
 
           <button type="submit" class="submit-btn" [disabled]="loading">
             <span *ngIf="!loading">Ingresar al Sistema <i class="arrow right icon" aria-hidden="true"></i></span>
-            <span *ngIf="loading">Autenticando...</span>
+            <span *ngIf="loading"><i class="spinner loading icon" aria-hidden="true"></i> Autenticando...</span>
           </button>
         </form>
 
-        <!-- Quick Access Demo Users -->
         <div class="demo-accounts">
           <div class="demo-title">Accesos Rápidos Demo:</div>
           <div class="demo-chips">
             <button type="button" class="demo-chip" (click)="fill('caja1', 'caja123')">
-              🛒 Cajero
+              <i class="shopping cart icon" aria-hidden="true"></i> Cajero
             </button>
             <button type="button" class="demo-chip" (click)="fill('manager', 'manager123')">
-              📊 Gerente
+              <i class="chart bar icon" aria-hidden="true"></i> Gerente
             </button>
             <button type="button" class="demo-chip" (click)="fill('admin', 'admin123')">
-              👑 Admin
+              <i class="shield alternate icon" aria-hidden="true"></i> Admin
             </button>
             <button type="button" class="demo-chip" (click)="fill('auditor', 'auditor123')">
-              ⚖️ Auditor
+              <i class="balance scale icon" aria-hidden="true"></i> Auditor
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   `,
   styleUrl: './login.component.css',
 })
@@ -112,7 +113,7 @@ export class LoginComponent {
       error: (err) => {
         this.loading = false;
         if (err.status === 0) {
-          this.errorMessage = 'No se pudo conectar con el servidor backend (HTTP 0). Verifique que el servicio corpcredit-api esté iniciado en el puerto 22300.';
+          this.errorMessage = 'No se pudo conectar con el servidor backend (HTTP 0). Verifique que la API de POS VIRTUAL esté activa en el puerto 22300.';
         } else {
           this.errorMessage = err.error?.message || 'Usuario o contraseña inválidos';
         }

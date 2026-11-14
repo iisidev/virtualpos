@@ -27,8 +27,8 @@
 .icon-circle {
   width: 56px;
   height: 56px;
-  background-color: var(--palette-action);
-  color: #ffffff;
+  background-color: var(--action-surface);
+  color: var(--on-action);
   border-radius: 14px;
   display: inline-grid;
   place-items: center;
@@ -40,11 +40,11 @@
   margin: 0;
 }
 
-.login-header h2 {
+.login-header h1 {
   margin: 0;
   font-weight: 700;
   color: var(--text-primary);
-  font-size: 22px;
+  font-size: 24px;
   letter-spacing: -0.3px;
 }
 
@@ -100,21 +100,27 @@
 .input-icon-wrapper input {
   width: 100%;
   padding: 11px 12px 11px 38px;
-  border: 1px solid var(--gray-border);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius-control);
   background: var(--surface-input);
   color: var(--text-primary);
   font-size: var(--ui-text-size);
   font-family: var(--font-body);
-  outline: none;
   transition:
     border-color 160ms,
     box-shadow 160ms;
 }
 
-.input-icon-wrapper input:focus {
-  border-color: var(--palette-action);
-  box-shadow: 0 0 0 3px rgb(234 88 12 / 12%);
+.input-icon-wrapper input:focus:not(:focus-visible) {
+  outline: 2px solid transparent;
+  border-color: var(--action-surface);
+  box-shadow: 0 0 0 3px rgb(194 65 12 / 14%);
+}
+
+.input-icon-wrapper input:focus-visible {
+  outline: 3px solid var(--action-surface);
+  outline-offset: 2px;
+  border-color: var(--action-surface);
 }
 
 .submit-btn {
@@ -164,10 +170,15 @@
 }
 
 .demo-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
   background: var(--surface-balance);
-  border: 1px solid var(--balance-border);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius-control);
-  padding: 9px 10px;
+  padding: 10px 12px;
   font-family: var(--font-body);
   font-size: var(--ui-small-size);
   font-weight: 600;
@@ -179,9 +190,18 @@
     color 160ms;
 }
 
+.demo-chip > i.icon {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
 .demo-chip:hover {
   background: var(--accent-subtle);
   border-color: var(--accent-border);
+  color: var(--accent-text);
+}
+
+.demo-chip:hover > i.icon {
   color: var(--accent-text);
 }
 
