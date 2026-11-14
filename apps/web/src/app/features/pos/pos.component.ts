@@ -16,18 +16,19 @@ import {
   AvailabilityTicket,
 } from '../../core/models';
 import { VoucherComponent } from '../voucher/voucher.component';
+import { StatusBannerComponent } from '../../shared/status-banner.component';
 
 @Component({
   selector: 'app-pos',
   standalone: true,
-  imports: [CommonModule, FormsModule, VoucherComponent],
+  imports: [CommonModule, FormsModule, VoucherComponent, StatusBannerComponent],
   template: `
     <div class="pos-container">
       <!-- Top Action Ribbon with Ergonomic Keyboard Hints -->
       <div class="pos-ribbon bento-card">
         <div class="ribbon-title">
           <i class="cash register icon" aria-hidden="true"></i>
-          <span>TERMINAL DE CAJA: {{ activeTerminal?.terminal_code || 'POS-CAJA-01' }} {{ activeTerminal?.name ? ' - ' + activeTerminal.name : '' }}</span>
+          <h1>TERMINAL DE CAJA: {{ activeTerminal?.terminal_code || 'POS-CAJA-01' }} {{ activeTerminal?.name ? ' - ' + activeTerminal.name : '' }}</h1>
         </div>
         <div class="ribbon-shortcuts">
           <span class="shortcut-item"><span class="key-badge">F2</span> Escanear Cédula / Carnet</span>
@@ -35,6 +36,12 @@ import { VoucherComponent } from '../voucher/voucher.component';
           <span class="shortcut-item"><span class="key-badge">F8</span> Reimprimir Último Voucher</span>
         </div>
       </div>
+
+      <app-status-banner
+        [message]="feedbackMessage"
+        [type]="feedbackType"
+        (dismiss)="feedbackMessage = ''"
+      ></app-status-banner>
 
       <!-- Bento 12-Column Layout -->
       <div class="bento-grid">
@@ -70,7 +77,7 @@ import { VoucherComponent } from '../voucher/voucher.component';
         >
           <div *ngIf="!client" class="empty-state">
             <i class="id card outline icon empty-icon" aria-hidden="true"></i>
-            <h3>Esperando Lectura de Cliente</h3>
+            <h2>Esperando Lectura de Cliente</h2>
             <p>Acerque el carnet con código de barras o digite la cédula para visualizar la línea de crédito.</p>
           </div>
 
@@ -137,7 +144,7 @@ import { VoucherComponent } from '../voucher/voucher.component';
         <!-- CHECKOUT PANEL CELL (5 COLUMNS) -->
         <div class="bento-card checkout-box ui-col-5">
           <div class="checkout-header">
-            <h3><i class="shopping cart icon" aria-hidden="true"></i> Cobro de Compra</h3>
+            <h2><i class="shopping cart icon" aria-hidden="true"></i> Cobro de Compra</h2>
             <span class="step-tag">Paso Final</span>
           </div>
 
@@ -211,10 +218,17 @@ import { VoucherComponent } from '../voucher/voucher.component';
         <!-- RECENT TRANSACTIONS TABLE CELL (12 COLUMNS) -->
         <div class="bento-card pos-transactions-card ui-col-12">
           <div class="table-header">
-            <h3><i class="history icon" aria-hidden="true"></i> Movimientos Recientes en Esta Caja</h3>
-            <button type="button" class="ui basic tiny button" (click)="loadRecentTransactions()">
-              <i class="refresh icon" aria-hidden="true"></i> Actualizar
+            <h2><i class="history icon" aria-hidden="true"></i> Movimientos Recientes en Esta Caja</h2>
+            <button type="button" class="ui basic tiny button" (click)="loadRecentTransactions()" [disabled]="loadingRecent">
+              <i class="refresh icon" aria-hidden="true"></i> {{ loadingRecent ? 'Actualizando...' : 'Actualizar' }}
             </button>
+          </div>
+
+          <div *ngIf="recentError" class="ui-banner error pos-table-alert" role="alert">
+            <span class="ui-banner-msg">
+              <i class="exclamation triangle icon" aria-hidden="true"></i> {{ recentError }}
+            </span>
+            <button type="button" class="ui-btn primary-btn" (click)="loadRecentTransactions()">Reintentar</button>
           </div>
 
           <div class="table-responsive">
@@ -286,17 +300,31 @@ import { VoucherComponent } from '../voucher/voucher.component';
       </div>
 
       <!-- THERMAL VOUCHER MODAL OVERLAY -->
-      <div class="modal-overlay" *ngIf="activeVoucher">
-        <div class="modal-content">
+      <div
+        class="modal-overlay"
+        *ngIf="activeVoucher"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Comprobante térmico de venta"
+        (click)="activeVoucher = null"
+      >
+        <div class="modal-content" (click)="$event.stopPropagation()">
           <app-voucher [voucher]="activeVoucher" (close)="activeVoucher = null"></app-voucher>
         </div>
       </div>
 
       <!-- AVAILABILITY TICKET MODAL OVERLAY -->
-      <div class="modal-overlay" *ngIf="availabilityTicket">
-        <div class="modal-content bento-card availability-modal">
+      <div
+        class="modal-overlay"
+        *ngIf="availabilityTicket"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="availability-modal-title"
+        (click)="availabilityTicket = null"
+      >
+        <div class="modal-content bento-card availability-modal" (click)="$event.stopPropagation()">
           <div class="availability-header">
-            <h3><i class="ticket alternate icon" aria-hidden="true"></i> Consulta de Disponibilidad</h3>
+            <h2 id="availability-modal-title"><i class="ticket alternate icon" aria-hidden="true"></i> Consulta de Disponibilidad</h2>
             <p>Ticket Informativo de Caja</p>
           </div>
 
@@ -320,6 +348,50 @@ import { VoucherComponent } from '../voucher/voucher.component';
               Cerrar
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- VOID TRANSACTION MODAL OVERLAY -->
+      <div
+        class="modal-overlay"
+        *ngIf="pendingVoidTx"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="void-modal-title"
+        (click)="closeVoidModal()"
+      >
+        <div class="modal-content bento-card availability-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2 id="void-modal-title">Anular Transacción</h2>
+            <button type="button" class="close-btn" aria-label="Cerrar ventana" (click)="closeVoidModal()">&times;</button>
+          </div>
+          <form (ngSubmit)="confirmVoid()" class="modal-form">
+            <p class="pos-void-summary">
+              Voucher <strong class="ui-mono">{{ pendingVoidTx.voucher_number }}</strong> &middot; Monto
+              <strong class="ui-mono">C$ {{ formatNumber(pendingVoidTx.amount) }}</strong>
+            </p>
+            <div class="form-group">
+              <label for="pos-void-reason">Motivo obligatorio de anulación *</label>
+              <textarea
+                id="pos-void-reason"
+                rows="3"
+                class="form-input"
+                [(ngModel)]="voidReason"
+                name="voidReason"
+                placeholder="Ej. Error de digitación o devolución de producto"
+                required
+              ></textarea>
+            </div>
+            <div *ngIf="voidError" class="ui negative message" role="alert">{{ voidError }}</div>
+            <div class="modal-actions">
+              <button type="button" class="ui-btn secondary-btn" (click)="closeVoidModal()" [disabled]="voiding">
+                Cancelar
+              </button>
+              <button type="submit" class="ui negative button" [disabled]="voiding || !voidReason.trim()">
+                {{ voiding ? 'Anulando...' : 'Confirmar Anulación' }}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -346,8 +418,18 @@ export class PosComponent implements OnInit {
   checkoutError = '';
 
   recentTransactions: VoucherDetails[] = [];
+  loadingRecent = false;
+  recentError = '';
   activeVoucher: VoucherDetails | null = null;
   availabilityTicket: AvailabilityTicket | null = null;
+
+  pendingVoidTx: VoucherDetails | null = null;
+  voidReason = '';
+  voiding = false;
+  voidError = '';
+
+  feedbackMessage = '';
+  feedbackType: 'success' | 'error' = 'success';
 
   ngOnInit(): void {
     this.loadActiveTerminal();
@@ -368,9 +450,20 @@ export class PosComponent implements OnInit {
     });
   }
 
-  // Global Ergonomic POS Keyboard Shortcuts: F2, F4, F8
+  // Global Ergonomic POS Keyboard Shortcuts: F2, F4, F8, Escape
   @HostListener('window:keydown', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      if (this.pendingVoidTx && !this.voiding) {
+        this.closeVoidModal();
+      } else if (this.activeVoucher) {
+        this.activeVoucher = null;
+      } else if (this.availabilityTicket) {
+        this.availabilityTicket = null;
+      }
+      return;
+    }
+
     if (event.key === 'F2') {
       event.preventDefault();
       this.scanInput?.nativeElement.focus();
@@ -459,42 +552,76 @@ export class PosComponent implements OnInit {
 
   printAvailabilityTicket(): void {
     if (!this.client) return;
+    this.feedbackMessage = '';
     this.posService.getAvailabilityTicket(this.client.id).subscribe({
       next: (ticket) => {
         this.availabilityTicket = ticket;
+      },
+      error: (err) => {
+        this.feedbackType = 'error';
+        this.feedbackMessage = err.error?.message || 'No se pudo generar el ticket de disponibilidad';
       },
     });
   }
 
   loadRecentTransactions(): void {
+    this.loadingRecent = true;
+    this.recentError = '';
     this.posService.getRecentTransactions().subscribe({
       next: (txs) => {
         this.recentTransactions = txs;
+        this.loadingRecent = false;
+      },
+      error: (err) => {
+        this.loadingRecent = false;
+        this.recentError = err.error?.message || 'No se pudieron cargar los movimientos recientes.';
       },
     });
   }
 
   viewVoucher(tx: VoucherDetails): void {
+    this.feedbackMessage = '';
     this.posService.getVoucher(tx.transaction_id || (tx as unknown as { id: string }).id).subscribe({
       next: (v) => {
         this.activeVoucher = v;
+      },
+      error: (err) => {
+        this.feedbackType = 'error';
+        this.feedbackMessage = err.error?.message || 'No se pudo recuperar el comprobante de venta.';
       },
     });
   }
 
   promptVoid(tx: VoucherDetails): void {
-    const reason = prompt('Ingrese el motivo obligatorio para la anulación de esta compra:');
-    if (!reason || !reason.trim()) return;
+    this.pendingVoidTx = tx;
+    this.voidReason = '';
+    this.voidError = '';
+  }
 
-    const txId = tx.transaction_id || (tx as unknown as { id: string }).id;
-    this.posService.voidTransaction(txId, reason.trim()).subscribe({
+  closeVoidModal(): void {
+    this.pendingVoidTx = null;
+    this.voidReason = '';
+    this.voidError = '';
+  }
+
+  confirmVoid(): void {
+    if (!this.pendingVoidTx || !this.voidReason.trim()) return;
+    const txId = this.pendingVoidTx.transaction_id || (this.pendingVoidTx as unknown as { id: string }).id;
+    this.voiding = true;
+    this.voidError = '';
+
+    this.posService.voidTransaction(txId, this.voidReason.trim()).subscribe({
       next: () => {
-        alert('Transacción anulada exitosamente y saldo restituido en el libro mayor.');
+        this.voiding = false;
+        this.closeVoidModal();
+        this.feedbackType = 'success';
+        this.feedbackMessage = 'Transacción anulada exitosamente y saldo restituido en el libro mayor.';
         this.loadRecentTransactions();
         if (this.client) this.onSearchClient();
       },
       error: (err) => {
-        alert(err.error?.message || 'No se pudo anular la transacción');
+        this.voiding = false;
+        this.voidError = err.error?.message || 'No se pudo anular la transacción';
       },
     });
   }

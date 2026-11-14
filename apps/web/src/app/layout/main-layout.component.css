@@ -37,8 +37,8 @@
   width: 36px;
   height: 36px;
   border-radius: 9px;
-  background: var(--palette-action);
-  color: #ffffff;
+  background: var(--action-surface);
+  color: var(--on-action);
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
@@ -145,7 +145,7 @@
   height: 40px;
   padding: 0;
   border-radius: var(--radius-control);
-  border: 1px solid var(--gray-border);
+  border: 1px solid var(--input-border);
   color: var(--text-secondary);
   background: var(--white-card);
   cursor: pointer;
@@ -227,7 +227,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--palette-charge);
+  background: var(--charge-surface);
   flex-shrink: 0;
 }
 
@@ -330,6 +330,13 @@
 
   .is-expanded .ui-sidebar {
     width: min(var(--navigation-width), calc(100vw - 32px));
+  }
+
+  .ui-menu-toggle,
+  .ui-menu-close {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
   }
 }
 

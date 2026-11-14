@@ -42,13 +42,21 @@
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background: var(--palette-action);
-  color: #ffffff;
+  background: var(--action-surface);
+  color: var(--on-action);
   font-size: 24px;
   margin: 0;
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
+}
+
+.kiosk-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
 }
 
 .kiosk-brand h1 {
@@ -137,11 +145,10 @@
   font-family: var(--font-mono);
   font-size: 20px;
   font-weight: 600;
-  border: 1px solid var(--gray-border);
+  border: 1px solid var(--input-border);
   border-radius: 10px;
   background: var(--surface-input);
   color: var(--text-primary);
-  outline: none;
   text-align: center;
   letter-spacing: 0.04em;
   transition:
@@ -149,9 +156,16 @@
     box-shadow 160ms;
 }
 
-.kiosk-input:focus {
-  border-color: var(--palette-action);
-  box-shadow: 0 0 0 3px rgb(234 88 12 / 14%);
+.kiosk-input:focus:not(:focus-visible) {
+  outline: 2px solid transparent;
+  border-color: var(--action-surface);
+  box-shadow: 0 0 0 3px rgb(194 65 12 / 14%);
+}
+
+.kiosk-input:focus-visible {
+  outline: 3px solid var(--action-surface);
+  outline-offset: 2px;
+  border-color: var(--action-surface);
 }
 
 .kiosk-btn {
@@ -305,6 +319,7 @@
   margin-bottom: 8px;
 }
 
+.qr-header h2,
 .qr-header h3 {
   margin: 0;
   font-size: 18px;

@@ -1,26 +1,56 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   CreditRequestsService,
   CreditRequestItem,
 } from '../../core/services/credit-requests.service';
+import { StatusBannerComponent } from '../../shared/status-banner.component';
 
 @Component({
   selector: 'app-credit-requests',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, StatusBannerComponent],
   template: `
     <div class="requests-page">
       <div class="page-header bento-card">
         <div>
-          <h2><i class="chart line icon" aria-hidden="true"></i> Solicitudes de Aumento de Crédito</h2>
+          <h1><i class="chart line icon" aria-hidden="true"></i> Solicitudes de Aumento de Crédito</h1>
           <p>Bandeja de solicitudes recibidas vía WhatsApp Bot y Portal Web para evaluación</p>
         </div>
+        <button type="button" class="ui-btn secondary-btn" (click)="loadRequests()" [disabled]="loading">
+          <i class="refresh icon" aria-hidden="true"></i>
+          {{ loading ? 'Actualizando...' : 'Actualizar' }}
+        </button>
       </div>
 
+      <app-status-banner
+        [message]="feedbackMessage"
+        [type]="feedbackType"
+        (dismiss)="feedbackMessage = ''"
+      ></app-status-banner>
+
       <div class="bento-card">
-        <div class="table-responsive">
+        <div *ngIf="loading && requests.length === 0" class="ui-state-box" role="status">
+          <i class="spinner loading icon" aria-hidden="true"></i>
+          <span>Cargando solicitudes de aumento de crédito...</span>
+        </div>
+
+        <div *ngIf="errorMessage && requests.length === 0" class="ui-banner error" role="alert">
+          <span class="ui-banner-msg">
+            <i class="exclamation triangle icon" aria-hidden="true"></i>
+            {{ errorMessage }}
+          </span>
+          <button type="button" class="ui-btn primary-btn" (click)="loadRequests()">Reintentar</button>
+        </div>
+
+        <div *ngIf="!loading && !errorMessage && requests.length === 0" class="ui-state-box">
+          <i class="inbox icon" aria-hidden="true"></i>
+          <span>No hay solicitudes registradas en la bandeja actualmente.</span>
+          <button type="button" class="ui-btn secondary-btn" (click)="loadRequests()">Verificar nuevamente</button>
+        </div>
+
+        <div *ngIf="requests.length > 0" class="table-responsive">
           <table class="ui selectable table">
             <thead>
               <tr>
@@ -72,11 +102,11 @@ import {
                 </td>
                 <td>
                   <div *ngIf="req.status === 'PENDING'" class="ui tiny buttons">
-                    <button type="button" class="ui positive button" (click)="resolve(req, 'APPROVE')">
+                    <button type="button" class="ui positive button" (click)="openReviewModal(req, 'APPROVE')">
                       Aprobar
                     </button>
                     <div class="or" data-text="o"></div>
-                    <button type="button" class="ui negative button" (click)="resolve(req, 'REJECT')">
+                    <button type="button" class="ui negative button" (click)="openReviewModal(req, 'REJECT')">
                       Rechazar
                     </button>
                   </div>
@@ -85,13 +115,74 @@ import {
                   </span>
                 </td>
               </tr>
-              <tr *ngIf="requests.length === 0">
-                <td colspan="10" class="empty-table-cell">
-                  No hay solicitudes registradas en la bandeja.
-                </td>
-              </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div
+        *ngIf="pendingDecision"
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="review-modal-title"
+        (click)="closeReviewModal()"
+      >
+        <div class="bento-card modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2 id="review-modal-title">
+              {{ pendingDecision.action === 'APPROVE' ? 'Aprobar Solicitud de Crédito' : 'Rechazar Solicitud de Crédito' }}
+            </h2>
+            <button
+              type="button"
+              class="close-btn"
+              aria-label="Cerrar ventana"
+              (click)="closeReviewModal()"
+            >
+              &times;
+            </button>
+          </div>
+
+          <form (ngSubmit)="confirmReview()" class="modal-form">
+            <p class="sub-text">
+              Colaborador:
+              <strong>{{ pendingDecision.request.client?.first_name }} {{ pendingDecision.request.client?.last_name }}</strong>
+              &middot; Monto solicitado: <strong class="ui-mono">C$ {{ formatNumber(pendingDecision.request.requested_limit) }}</strong>
+            </p>
+
+            <div class="form-group">
+              <label for="credit-review-notes">Observaciones o justificación</label>
+              <textarea
+                id="credit-review-notes"
+                rows="3"
+                class="form-input"
+                [(ngModel)]="reviewNotes"
+                name="reviewNotes"
+                placeholder="Detalle opcional sobre la decisión..."
+              ></textarea>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="ui-btn secondary-btn" (click)="closeReviewModal()" [disabled]="resolving">
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                class="ui button"
+                [class.positive]="pendingDecision.action === 'APPROVE'"
+                [class.negative]="pendingDecision.action === 'REJECT'"
+                [disabled]="resolving"
+              >
+                {{
+                  resolving
+                    ? 'Procesando...'
+                    : pendingDecision.action === 'APPROVE'
+                      ? 'Confirmar Aprobación'
+                      : 'Confirmar Rechazo'
+                }}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -102,27 +193,73 @@ export class CreditRequestsComponent implements OnInit {
   private readonly requestService = inject(CreditRequestsService);
 
   requests: CreditRequestItem[] = [];
+  loading = false;
+  errorMessage = '';
+  feedbackMessage = '';
+  feedbackType: 'success' | 'error' = 'success';
+
+  pendingDecision: { request: CreditRequestItem; action: 'APPROVE' | 'REJECT' } | null = null;
+  reviewNotes = '';
+  resolving = false;
 
   ngOnInit(): void {
     this.loadRequests();
   }
 
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.pendingDecision && !this.resolving) {
+      this.closeReviewModal();
+    }
+  }
+
   loadRequests(): void {
+    this.loading = true;
+    this.errorMessage = '';
     this.requestService.findAll().subscribe({
-      next: (data) => (this.requests = data),
+      next: (data) => {
+        this.requests = data;
+        this.loading = false;
+      },
+      error: (err) => {
+        this.loading = false;
+        this.errorMessage = err.error?.message || 'No se pudieron cargar las solicitudes de crédito.';
+      },
     });
   }
 
-  resolve(req: CreditRequestItem, action: 'APPROVE' | 'REJECT'): void {
-    const actionText = action === 'APPROVE' ? 'Aprobar' : 'Rechazar';
-    const notes = prompt(`Observaciones o justificación para ${actionText} la solicitud:`) || '';
+  openReviewModal(request: CreditRequestItem, action: 'APPROVE' | 'REJECT'): void {
+    this.pendingDecision = { request, action };
+    this.reviewNotes = '';
+  }
 
-    this.requestService.review(req.id, action, notes).subscribe({
+  closeReviewModal(): void {
+    this.pendingDecision = null;
+    this.reviewNotes = '';
+  }
+
+  confirmReview(): void {
+    if (!this.pendingDecision) return;
+    const { request, action } = this.pendingDecision;
+    this.resolving = true;
+    this.feedbackMessage = '';
+
+    this.requestService.review(request.id, action, this.reviewNotes.trim()).subscribe({
       next: () => {
-        alert(`Solicitud ${action === 'APPROVE' ? 'aprobada y límite actualizado en el libro mayor' : 'rechazada'}.`);
+        this.resolving = false;
+        this.closeReviewModal();
+        this.feedbackType = 'success';
+        this.feedbackMessage =
+          action === 'APPROVE'
+            ? 'Solicitud aprobada y límite actualizado en el libro mayor.'
+            : 'Solicitud rechazada correctamente.';
         this.loadRequests();
       },
-      error: (err) => alert(err.error?.message || 'Error al procesar la resolución'),
+      error: (err) => {
+        this.resolving = false;
+        this.feedbackType = 'error';
+        this.feedbackMessage = err.error?.message || 'Error al procesar la resolución.';
+      },
     });
   }
 

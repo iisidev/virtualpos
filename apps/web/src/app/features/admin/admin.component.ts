@@ -1,7 +1,9 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Observable } from 'rxjs';
 import { AdminService } from '../../core/services/admin.service';
+import { StatusBannerComponent } from '../../shared/status-banner.component';
 import {
   Company,
   CreateCompanyPayload,
@@ -21,41 +23,56 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, StatusBannerComponent],
   template: `
     <div class="admin-page">
       <!-- Bento Header -->
       <div class="bento-card admin-header">
         <div class="header-info">
-          <h2><i class="cogs icon"></i> Panel de Administración Central</h2>
+          <h1><i class="cogs icon" aria-hidden="true"></i> Panel de Administración Central</h1>
           <p>Gestión multi-empresa, control de acceso basado en roles (RBAC) y catálogos maestros</p>
         </div>
 
         <!-- Bento Tabs -->
-        <div class="tab-pills">
+        <div class="tab-pills" role="tablist" aria-label="Secciones de administración">
           <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab === 'companies'"
             class="tab-btn"
             [class.active]="activeTab === 'companies'"
             (click)="setTab('companies')"
           >
-            <i class="building icon"></i> Empresas ({{ companies.length }})
+            <i class="building icon" aria-hidden="true"></i> Empresas ({{ companies.length }})
           </button>
           <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab === 'users'"
             class="tab-btn"
             [class.active]="activeTab === 'users'"
             (click)="setTab('users')"
           >
-            <i class="users icon"></i> Usuarios y Roles ({{ users.length }})
+            <i class="users icon" aria-hidden="true"></i> Usuarios y Roles ({{ users.length }})
           </button>
           <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab === 'catalogs'"
             class="tab-btn"
             [class.active]="activeTab === 'catalogs'"
             (click)="setTab('catalogs')"
           >
-            <i class="tags icon"></i> Catálogos Maestros ({{ catalogs.length }})
+            <i class="tags icon" aria-hidden="true"></i> Catálogos Maestros ({{ catalogs.length }})
           </button>
         </div>
       </div>
+
+      <app-status-banner
+        [message]="feedbackMessage"
+        [type]="feedbackType"
+        (dismiss)="feedbackMessage = ''"
+      ></app-status-banner>
 
       <!-- TAB 1: EMPRESAS -->
       <div *ngIf="activeTab === 'companies'" class="tab-content">
@@ -78,21 +95,33 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
         <!-- Action Bar -->
         <div class="bento-card action-bar">
           <div class="search-box">
-            <i class="search icon"></i>
+            <i class="search icon" aria-hidden="true"></i>
+            <label for="admin-search-company" class="sr-only">Buscar empresa por razón social, código o RUC</label>
             <input
+              id="admin-search-company"
               type="text"
               placeholder="Buscar por razón social, código o RUC..."
               [(ngModel)]="searchCompany"
             />
           </div>
-          <button class="ui-btn primary-btn" (click)="openCompanyModal()">
-            <i class="plus icon"></i> Registrar Empresa
+          <button type="button" class="ui-btn primary-btn" (click)="openCompanyModal()">
+            <i class="plus icon" aria-hidden="true"></i> Registrar Empresa
           </button>
         </div>
 
         <!-- Table -->
         <div class="bento-card table-card">
-          <div class="table-responsive">
+          <div *ngIf="loadingCompanies && companies.length === 0" class="ui-state-box" role="status">
+            <i class="spinner loading icon" aria-hidden="true"></i>
+            <span>Cargando empresas registradas...</span>
+          </div>
+          <div *ngIf="errorCompanies && companies.length === 0" class="ui-banner error" role="alert">
+            <span class="ui-banner-msg">
+              <i class="exclamation triangle icon" aria-hidden="true"></i> {{ errorCompanies }}
+            </span>
+            <button type="button" class="ui-btn primary-btn" (click)="loadCompanies()">Reintentar</button>
+          </div>
+          <div *ngIf="!errorCompanies && (companies.length > 0 || !loadingCompanies)" class="table-responsive">
             <table class="ui-table">
               <thead>
                 <tr>
@@ -186,21 +215,33 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
         <!-- Action Bar -->
         <div class="bento-card action-bar">
           <div class="search-box">
-            <i class="search icon"></i>
+            <i class="search icon" aria-hidden="true"></i>
+            <label for="admin-search-user" class="sr-only">Buscar usuario por cuenta o nombre completo</label>
             <input
+              id="admin-search-user"
               type="text"
               placeholder="Buscar por usuario o nombre completo..."
               [(ngModel)]="searchUser"
             />
           </div>
-          <button class="ui-btn primary-btn" (click)="openUserModal()">
-            <i class="user plus icon"></i> Crear Usuario
+          <button type="button" class="ui-btn primary-btn" (click)="openUserModal()">
+            <i class="user plus icon" aria-hidden="true"></i> Crear Usuario
           </button>
         </div>
 
         <!-- Table -->
         <div class="bento-card table-card">
-          <div class="table-responsive">
+          <div *ngIf="loadingUsers && users.length === 0" class="ui-state-box" role="status">
+            <i class="spinner loading icon" aria-hidden="true"></i>
+            <span>Cargando usuarios del sistema...</span>
+          </div>
+          <div *ngIf="errorUsers && users.length === 0" class="ui-banner error" role="alert">
+            <span class="ui-banner-msg">
+              <i class="exclamation triangle icon" aria-hidden="true"></i> {{ errorUsers }}
+            </span>
+            <button type="button" class="ui-btn primary-btn" (click)="loadUsers()">Reintentar</button>
+          </div>
+          <div *ngIf="!errorUsers && (users.length > 0 || !loadingUsers)" class="table-responsive">
             <table class="ui-table">
               <thead>
                 <tr>
@@ -269,6 +310,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
         <div class="bento-card action-bar">
           <div class="catalog-subtabs">
             <button
+              type="button"
               class="subtab-btn"
               [class.active]="selectedCatalogCategory === ''"
               (click)="filterCategory('')"
@@ -276,6 +318,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
               Todos ({{ catalogs.length }})
             </button>
             <button
+              type="button"
               class="subtab-btn"
               [class.active]="selectedCatalogCategory === 'JOB_TITLE'"
               (click)="filterCategory('JOB_TITLE')"
@@ -283,6 +326,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
               Cargos / Puestos ({{ countCatalogCat('JOB_TITLE') }})
             </button>
             <button
+              type="button"
               class="subtab-btn"
               [class.active]="selectedCatalogCategory === 'GRADE_LEVEL'"
               (click)="filterCategory('GRADE_LEVEL')"
@@ -290,6 +334,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
               Grados Salariales ({{ countCatalogCat('GRADE_LEVEL') }})
             </button>
             <button
+              type="button"
               class="subtab-btn"
               [class.active]="selectedCatalogCategory === 'CLASSIFICATION'"
               (click)="filterCategory('CLASSIFICATION')"
@@ -298,14 +343,24 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
             </button>
           </div>
 
-          <button class="ui-btn primary-btn" (click)="openCatalogModal()">
-            <i class="plus icon"></i> Nuevo Elemento
+          <button type="button" class="ui-btn primary-btn" (click)="openCatalogModal()">
+            <i class="plus icon" aria-hidden="true"></i> Nuevo Elemento
           </button>
         </div>
 
         <!-- Table -->
         <div class="bento-card table-card">
-          <div class="table-responsive">
+          <div *ngIf="loadingCatalogs && catalogs.length === 0" class="ui-state-box" role="status">
+            <i class="spinner loading icon" aria-hidden="true"></i>
+            <span>Cargando catálogos maestros...</span>
+          </div>
+          <div *ngIf="errorCatalogs && catalogs.length === 0" class="ui-banner error" role="alert">
+            <span class="ui-banner-msg">
+              <i class="exclamation triangle icon" aria-hidden="true"></i> {{ errorCatalogs }}
+            </span>
+            <button type="button" class="ui-btn primary-btn" (click)="loadCatalogs()">Reintentar</button>
+          </div>
+          <div *ngIf="!errorCatalogs && (catalogs.length > 0 || !loadingCatalogs)" class="table-responsive">
             <table class="ui-table">
               <thead>
                 <tr>
@@ -369,18 +424,30 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
       </div>
 
       <!-- MODAL: EMPRESA -->
-      <div *ngIf="showCompanyModal" class="modal-backdrop">
-        <div class="bento-card modal-content">
+      <div
+        *ngIf="showCompanyModal"
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="company-modal-title"
+        (click)="!savingCompany && closeCompanyModal()"
+      >
+        <div class="bento-card modal-content" (click)="$event.stopPropagation()">
           <div class="modal-header">
-            <h3>{{ editingCompanyId ? 'Editar Empresa' : 'Registrar Nueva Empresa' }}</h3>
-            <button class="close-btn" (click)="closeCompanyModal()">&times;</button>
+            <h2 id="company-modal-title">{{ editingCompanyId ? 'Editar Empresa' : 'Registrar Nueva Empresa' }}</h2>
+            <button type="button" class="close-btn" aria-label="Cerrar ventana" (click)="closeCompanyModal()">&times;</button>
+          </div>
+
+          <div *ngIf="modalError" class="ui-banner error modal-error-banner" role="alert">
+            <span class="ui-banner-msg"><i class="exclamation circle icon" aria-hidden="true"></i> {{ modalError }}</span>
           </div>
 
           <form (ngSubmit)="saveCompany()" class="modal-form">
             <div class="form-row">
               <div class="form-group flex-1">
-                <label>Código Único *</label>
+                <label for="company-code">Código Único *</label>
                 <input
+                  id="company-code"
                   type="text"
                   class="form-input"
                   [(ngModel)]="companyForm.code"
@@ -390,8 +457,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                 />
               </div>
               <div class="form-group flex-2">
-                <label>Razón Social / Nombre *</label>
+                <label for="company-name">Razón Social / Nombre *</label>
                 <input
+                  id="company-name"
                   type="text"
                   class="form-input"
                   [(ngModel)]="companyForm.name"
@@ -404,8 +472,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
 
             <div class="form-row">
               <div class="form-group flex-1">
-                <label>RUC Corporativo *</label>
+                <label for="company-ruc">RUC Corporativo *</label>
                 <input
+                  id="company-ruc"
                   type="text"
                   class="form-input"
                   [(ngModel)]="companyForm.ruc"
@@ -415,8 +484,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                 />
               </div>
               <div class="form-group flex-1">
-                <label>Teléfono</label>
+                <label for="company-phone">Teléfono</label>
                 <input
+                  id="company-phone"
                   type="text"
                   class="form-input"
                   [(ngModel)]="companyForm.phone"
@@ -427,8 +497,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
             </div>
 
             <div class="form-group">
-              <label>Dirección</label>
+              <label for="company-address">Dirección</label>
               <textarea
+                id="company-address"
                 class="form-input"
                 rows="2"
                 [(ngModel)]="companyForm.address"
@@ -438,8 +509,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
             </div>
 
             <div class="form-row checkboxes">
-              <label class="checkbox-label">
+              <label class="checkbox-label" for="company-is-employer">
                 <input
+                  id="company-is-employer"
                   type="checkbox"
                   [(ngModel)]="companyForm.is_employer"
                   name="is_employer"
@@ -447,8 +519,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                 <span><strong>Empresa Empleadora</strong> (sus colaboradores reciben crédito)</span>
               </label>
 
-              <label class="checkbox-label">
+              <label class="checkbox-label" for="company-is-merchant">
                 <input
+                  id="company-is-merchant"
                   type="checkbox"
                   [(ngModel)]="companyForm.is_merchant"
                   name="is_merchant"
@@ -458,7 +531,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
             </div>
 
             <div class="modal-actions">
-              <button type="button" class="ui-btn secondary-btn" (click)="closeCompanyModal()">
+              <button type="button" class="ui-btn secondary-btn" (click)="closeCompanyModal()" [disabled]="savingCompany">
                 Cancelar
               </button>
               <button type="submit" class="ui-btn primary-btn" [disabled]="savingCompany">
@@ -470,18 +543,30 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
       </div>
 
       <!-- MODAL: USUARIO -->
-      <div *ngIf="showUserModal" class="modal-backdrop">
-        <div class="bento-card modal-content">
+      <div
+        *ngIf="showUserModal"
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="user-modal-title"
+        (click)="!savingUser && closeUserModal()"
+      >
+        <div class="bento-card modal-content" (click)="$event.stopPropagation()">
           <div class="modal-header">
-            <h3>{{ editingUserId ? 'Editar Usuario' : 'Crear Nuevo Usuario' }}</h3>
-            <button class="close-btn" (click)="closeUserModal()">&times;</button>
+            <h2 id="user-modal-title">{{ editingUserId ? 'Editar Usuario' : 'Crear Nuevo Usuario' }}</h2>
+            <button type="button" class="close-btn" aria-label="Cerrar ventana" (click)="closeUserModal()">&times;</button>
+          </div>
+
+          <div *ngIf="modalError" class="ui-banner error modal-error-banner" role="alert">
+            <span class="ui-banner-msg"><i class="exclamation circle icon" aria-hidden="true"></i> {{ modalError }}</span>
           </div>
 
           <form (ngSubmit)="saveUser()" class="modal-form">
             <div class="form-row">
               <div class="form-group flex-1">
-                <label>Nombre de Usuario (Login) *</label>
+                <label for="user-username">Nombre de Usuario (Login) *</label>
                 <input
+                  id="user-username"
                   type="text"
                   class="form-input"
                   [(ngModel)]="userForm.username"
@@ -491,8 +576,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                 />
               </div>
               <div class="form-group flex-1">
-                <label>Contraseña {{ editingUserId ? '(dejar vacío para no cambiar)' : '*' }}</label>
+                <label for="user-password">Contraseña {{ editingUserId ? '(dejar vacío para no cambiar)' : '*' }}</label>
                 <input
+                  id="user-password"
                   type="password"
                   class="form-input"
                   [(ngModel)]="userForm.password"
@@ -504,8 +590,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
             </div>
 
             <div class="form-group">
-              <label>Nombre Completo *</label>
+              <label for="user-fullname">Nombre Completo *</label>
               <input
+                id="user-fullname"
                 type="text"
                 class="form-input"
                 [(ngModel)]="userForm.full_name"
@@ -517,8 +604,8 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
 
             <div class="form-row">
               <div class="form-group flex-1">
-                <label>Rol de Sistema *</label>
-                <select class="form-input" [(ngModel)]="userForm.role" name="role" required>
+                <label for="user-role">Rol de Sistema *</label>
+                <select id="user-role" class="form-input" [(ngModel)]="userForm.role" name="role" required>
                   <option value="SUPER_ADMIN">SUPER_ADMIN (Control Total)</option>
                   <option value="CREDIT_MANAGER">CREDIT_MANAGER (Analista de Crédito)</option>
                   <option value="CASHIER">CASHIER (Operador de Caja POS)</option>
@@ -527,8 +614,8 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
               </div>
 
               <div class="form-group flex-1">
-                <label>Empresa Asignada</label>
-                <select class="form-input" [(ngModel)]="userForm.company_id" name="company_id">
+                <label for="user-company">Empresa Asignada</label>
+                <select id="user-company" class="form-input" [(ngModel)]="userForm.company_id" name="company_id">
                   <option [ngValue]="null">-- Acceso Global (Sin restricción) --</option>
                   <option *ngFor="let comp of companies" [value]="comp.id">
                     {{ comp.name }} ({{ comp.code }})
@@ -538,7 +625,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
             </div>
 
             <div class="modal-actions">
-              <button type="button" class="ui-btn secondary-btn" (click)="closeUserModal()">
+              <button type="button" class="ui-btn secondary-btn" (click)="closeUserModal()" [disabled]="savingUser">
                 Cancelar
               </button>
               <button type="submit" class="ui-btn primary-btn" [disabled]="savingUser">
@@ -550,18 +637,30 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
       </div>
 
       <!-- MODAL: CATALOGO -->
-      <div *ngIf="showCatalogModal" class="modal-backdrop">
-        <div class="bento-card modal-content">
+      <div
+        *ngIf="showCatalogModal"
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="catalog-modal-title"
+        (click)="!savingCatalog && closeCatalogModal()"
+      >
+        <div class="bento-card modal-content" (click)="$event.stopPropagation()">
           <div class="modal-header">
-            <h3>{{ editingCatalogId ? 'Editar Catálogo' : 'Nuevo Elemento de Catálogo' }}</h3>
-            <button class="close-btn" (click)="closeCatalogModal()">&times;</button>
+            <h2 id="catalog-modal-title">{{ editingCatalogId ? 'Editar Catálogo' : 'Nuevo Elemento de Catálogo' }}</h2>
+            <button type="button" class="close-btn" aria-label="Cerrar ventana" (click)="closeCatalogModal()">&times;</button>
+          </div>
+
+          <div *ngIf="modalError" class="ui-banner error modal-error-banner" role="alert">
+            <span class="ui-banner-msg"><i class="exclamation circle icon" aria-hidden="true"></i> {{ modalError }}</span>
           </div>
 
           <form (ngSubmit)="saveCatalog()" class="modal-form">
             <div class="form-row">
               <div class="form-group flex-1">
-                <label>Categoría *</label>
+                <label for="catalog-category">Categoría *</label>
                 <select
+                  id="catalog-category"
                   class="form-input"
                   [(ngModel)]="catalogForm.category"
                   name="category"
@@ -575,8 +674,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
               </div>
 
               <div class="form-group flex-1">
-                <label>Código Identificador *</label>
+                <label for="catalog-code">Código Identificador *</label>
                 <input
+                  id="catalog-code"
                   type="text"
                   class="form-input"
                   [(ngModel)]="catalogForm.code"
@@ -588,8 +688,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
             </div>
 
             <div class="form-group">
-              <label>Nombre / Título *</label>
+              <label for="catalog-name">Nombre / Título *</label>
               <input
+                id="catalog-name"
                 type="text"
                 class="form-input"
                 [(ngModel)]="catalogForm.name"
@@ -600,8 +701,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
             </div>
 
             <div class="form-group">
-              <label>Descripción / Alcance</label>
+              <label for="catalog-description">Descripción / Alcance</label>
               <textarea
+                id="catalog-description"
                 class="form-input"
                 rows="2"
                 [(ngModel)]="catalogForm.description"
@@ -611,8 +713,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
             </div>
 
             <div class="form-group catalog-order-group">
-              <label>Orden Visual</label>
+              <label for="catalog-order">Orden Visual</label>
               <input
+                id="catalog-order"
                 type="number"
                 class="form-input"
                 [(ngModel)]="catalogForm.order_index"
@@ -621,7 +724,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
             </div>
 
             <div class="modal-actions">
-              <button type="button" class="ui-btn secondary-btn" (click)="closeCatalogModal()">
+              <button type="button" class="ui-btn secondary-btn" (click)="closeCatalogModal()" [disabled]="savingCatalog">
                 Cancelar
               </button>
               <button type="submit" class="ui-btn primary-btn" [disabled]="savingCatalog">
@@ -629,6 +732,34 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
               </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <!-- MODAL: CONFIRMAR CAMBIO DE ESTADO -->
+      <div
+        *ngIf="pendingStatusConfirm"
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-confirm-title"
+        (click)="!confirmingStatus && closeStatusConfirm()"
+      >
+        <div class="bento-card modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2 id="admin-confirm-title">Confirmar Cambio de Estado</h2>
+            <button type="button" class="close-btn" aria-label="Cerrar ventana" (click)="closeStatusConfirm()">&times;</button>
+          </div>
+
+          <p class="sub-detail">{{ pendingStatusConfirm.summary }}</p>
+
+          <div class="modal-actions">
+            <button type="button" class="ui-btn secondary-btn" (click)="closeStatusConfirm()" [disabled]="confirmingStatus">
+              Cancelar
+            </button>
+            <button type="button" class="ui-btn primary-btn" (click)="executeStatusToggle()" [disabled]="confirmingStatus">
+              {{ confirmingStatus ? 'Aplicando...' : 'Confirmar' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -651,6 +782,23 @@ export class AdminComponent implements OnInit {
   selectedCatalogCategory: string = '';
 
   // Modals state
+  loadingCompanies = false;
+  loadingUsers = false;
+  loadingCatalogs = false;
+  errorCompanies = '';
+  errorUsers = '';
+  errorCatalogs = '';
+  feedbackMessage = '';
+  feedbackType: 'success' | 'error' = 'success';
+  modalError = '';
+
+  pendingStatusConfirm: {
+    kind: 'company' | 'user' | 'catalog';
+    id: string;
+    summary: string;
+  } | null = null;
+  confirmingStatus = false;
+
   showCompanyModal = false;
   editingCompanyId: string | null = null;
   savingCompany = false;
@@ -692,15 +840,35 @@ export class AdminComponent implements OnInit {
     this.loadCatalogs();
   }
 
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.pendingStatusConfirm && !this.confirmingStatus) {
+      this.closeStatusConfirm();
+    } else if (this.showCompanyModal && !this.savingCompany) {
+      this.closeCompanyModal();
+    } else if (this.showUserModal && !this.savingUser) {
+      this.closeUserModal();
+    } else if (this.showCatalogModal && !this.savingCatalog) {
+      this.closeCatalogModal();
+    }
+  }
+
   setTab(tab: AdminTab): void {
     this.activeTab = tab;
   }
 
-  // ================= EMPRESAS =================
   loadCompanies(): void {
+    this.loadingCompanies = true;
+    this.errorCompanies = '';
     this.adminService.getCompanies().subscribe({
-      next: (data) => (this.companies = data),
-      error: (err) => console.error('Error cargando empresas:', err),
+      next: (data) => {
+        this.companies = data;
+        this.loadingCompanies = false;
+      },
+      error: (err) => {
+        this.loadingCompanies = false;
+        this.errorCompanies = err.error?.message || 'Error cargando empresas.';
+      },
     });
   }
 
@@ -747,31 +915,36 @@ export class AdminComponent implements OnInit {
         is_merchant: false,
       };
     }
+    this.modalError = '';
     this.showCompanyModal = true;
   }
 
   closeCompanyModal(): void {
     this.showCompanyModal = false;
     this.editingCompanyId = null;
+    this.modalError = '';
   }
 
   saveCompany(): void {
     if (!this.companyForm.code || !this.companyForm.name || !this.companyForm.ruc) {
-      alert('Por favor complete todos los campos obligatorios (*)');
+      this.modalError = 'Por favor complete todos los campos obligatorios (*).';
       return;
     }
 
     this.savingCompany = true;
+    this.modalError = '';
     if (this.editingCompanyId) {
       this.adminService.updateCompany(this.editingCompanyId, this.companyForm).subscribe({
         next: () => {
           this.savingCompany = false;
           this.closeCompanyModal();
+          this.feedbackType = 'success';
+          this.feedbackMessage = 'Empresa actualizada correctamente.';
           this.loadCompanies();
         },
         error: (err) => {
           this.savingCompany = false;
-          alert(err.error?.message || 'Error al actualizar empresa');
+          this.modalError = err.error?.message || 'Error al actualizar empresa';
         },
       });
     } else {
@@ -779,29 +952,38 @@ export class AdminComponent implements OnInit {
         next: () => {
           this.savingCompany = false;
           this.closeCompanyModal();
+          this.feedbackType = 'success';
+          this.feedbackMessage = 'Empresa registrada correctamente.';
           this.loadCompanies();
         },
         error: (err) => {
           this.savingCompany = false;
-          alert(err.error?.message || 'Error al registrar empresa');
+          this.modalError = err.error?.message || 'Error al registrar empresa';
         },
       });
     }
   }
 
   toggleCompanyStatus(comp: Company): void {
-    if (!confirm(`¿Desea cambiar el estado de la empresa ${comp.name}?`)) return;
-    this.adminService.toggleCompanyStatus(comp.id).subscribe({
-      next: () => this.loadCompanies(),
-      error: (err) => alert(err.error?.message || 'Error al cambiar estado'),
-    });
+    this.pendingStatusConfirm = {
+      kind: 'company',
+      id: comp.id,
+      summary: `¿Desea cambiar el estado de la empresa ${comp.name}?`,
+    };
   }
 
-  // ================= USUARIOS =================
   loadUsers(): void {
+    this.loadingUsers = true;
+    this.errorUsers = '';
     this.adminService.getUsers().subscribe({
-      next: (data) => (this.users = data),
-      error: (err) => console.error('Error cargando usuarios:', err),
+      next: (data) => {
+        this.users = data;
+        this.loadingUsers = false;
+      },
+      error: (err) => {
+        this.loadingUsers = false;
+        this.errorUsers = err.error?.message || 'Error cargando usuarios.';
+      },
     });
   }
 
@@ -852,25 +1034,28 @@ export class AdminComponent implements OnInit {
         company_id: null,
       };
     }
+    this.modalError = '';
     this.showUserModal = true;
   }
 
   closeUserModal(): void {
     this.showUserModal = false;
     this.editingUserId = null;
+    this.modalError = '';
   }
 
   saveUser(): void {
     if (!this.userForm.username || !this.userForm.full_name) {
-      alert('Nombre de usuario y nombre completo son requeridos');
+      this.modalError = 'Nombre de usuario y nombre completo son requeridos.';
       return;
     }
     if (!this.editingUserId && !this.userForm.password) {
-      alert('La contraseña es requerida para nuevos usuarios');
+      this.modalError = 'La contraseña es requerida para nuevos usuarios.';
       return;
     }
 
     this.savingUser = true;
+    this.modalError = '';
     if (this.editingUserId) {
       const payload: UpdateUserPayload = {
         username: this.userForm.username,
@@ -886,11 +1071,13 @@ export class AdminComponent implements OnInit {
         next: () => {
           this.savingUser = false;
           this.closeUserModal();
+          this.feedbackType = 'success';
+          this.feedbackMessage = 'Usuario actualizado correctamente.';
           this.loadUsers();
         },
         error: (err) => {
           this.savingUser = false;
-          alert(err.error?.message || 'Error al actualizar usuario');
+          this.modalError = err.error?.message || 'Error al actualizar usuario';
         },
       });
     } else {
@@ -898,29 +1085,38 @@ export class AdminComponent implements OnInit {
         next: () => {
           this.savingUser = false;
           this.closeUserModal();
+          this.feedbackType = 'success';
+          this.feedbackMessage = 'Usuario creado correctamente.';
           this.loadUsers();
         },
         error: (err) => {
           this.savingUser = false;
-          alert(err.error?.message || 'Error al crear usuario');
+          this.modalError = err.error?.message || 'Error al crear usuario';
         },
       });
     }
   }
 
   toggleUserStatus(user: AdminUser): void {
-    if (!confirm(`¿Desea cambiar el estado del usuario @${user.username}?`)) return;
-    this.adminService.toggleUserStatus(user.id).subscribe({
-      next: () => this.loadUsers(),
-      error: (err) => alert(err.error?.message || 'Error al cambiar estado'),
-    });
+    this.pendingStatusConfirm = {
+      kind: 'user',
+      id: user.id,
+      summary: `¿Desea cambiar el estado del usuario @${user.username}?`,
+    };
   }
 
-  // ================= CATALOGOS =================
   loadCatalogs(): void {
+    this.loadingCatalogs = true;
+    this.errorCatalogs = '';
     this.adminService.getCatalogs().subscribe({
-      next: (data) => (this.catalogs = data),
-      error: (err) => console.error('Error cargando catálogos:', err),
+      next: (data) => {
+        this.catalogs = data;
+        this.loadingCatalogs = false;
+      },
+      error: (err) => {
+        this.loadingCatalogs = false;
+        this.errorCatalogs = err.error?.message || 'Error cargando catálogos.';
+      },
     });
   }
 
@@ -969,21 +1165,24 @@ export class AdminComponent implements OnInit {
         order_index: this.catalogs.length + 1,
       };
     }
+    this.modalError = '';
     this.showCatalogModal = true;
   }
 
   closeCatalogModal(): void {
     this.showCatalogModal = false;
     this.editingCatalogId = null;
+    this.modalError = '';
   }
 
   saveCatalog(): void {
     if (!this.catalogForm.code || !this.catalogForm.name) {
-      alert('Código y nombre son obligatorios');
+      this.modalError = 'Código y nombre son obligatorios.';
       return;
     }
 
     this.savingCatalog = true;
+    this.modalError = '';
     if (this.editingCatalogId) {
       const payload: UpdateCatalogPayload = {
         code: this.catalogForm.code,
@@ -995,11 +1194,13 @@ export class AdminComponent implements OnInit {
         next: () => {
           this.savingCatalog = false;
           this.closeCatalogModal();
+          this.feedbackType = 'success';
+          this.feedbackMessage = 'Elemento de catálogo actualizado correctamente.';
           this.loadCatalogs();
         },
         error: (err) => {
           this.savingCatalog = false;
-          alert(err.error?.message || 'Error al actualizar catálogo');
+          this.modalError = err.error?.message || 'Error al actualizar catálogo';
         },
       });
     } else {
@@ -1007,21 +1208,58 @@ export class AdminComponent implements OnInit {
         next: () => {
           this.savingCatalog = false;
           this.closeCatalogModal();
+          this.feedbackType = 'success';
+          this.feedbackMessage = 'Elemento de catálogo creado correctamente.';
           this.loadCatalogs();
         },
         error: (err) => {
           this.savingCatalog = false;
-          alert(err.error?.message || 'Error al crear elemento de catálogo');
+          this.modalError = err.error?.message || 'Error al crear elemento de catálogo';
         },
       });
     }
   }
 
   toggleCatalogStatus(cat: CatalogItem): void {
-    if (!confirm(`¿Desea cambiar el estado de ${cat.name}?`)) return;
-    this.adminService.toggleCatalogStatus(cat.id).subscribe({
-      next: () => this.loadCatalogs(),
-      error: (err) => alert(err.error?.message || 'Error al cambiar estado'),
+    this.pendingStatusConfirm = {
+      kind: 'catalog',
+      id: cat.id,
+      summary: `¿Desea cambiar el estado de ${cat.name}?`,
+    };
+  }
+
+  closeStatusConfirm(): void {
+    this.pendingStatusConfirm = null;
+  }
+
+  executeStatusToggle(): void {
+    if (!this.pendingStatusConfirm) return;
+    const { kind, id } = this.pendingStatusConfirm;
+    this.confirmingStatus = true;
+
+    const req$: Observable<unknown> =
+      kind === 'company'
+        ? this.adminService.toggleCompanyStatus(id)
+        : kind === 'user'
+          ? this.adminService.toggleUserStatus(id)
+          : this.adminService.toggleCatalogStatus(id);
+
+    req$.subscribe({
+      next: () => {
+        this.confirmingStatus = false;
+        this.closeStatusConfirm();
+        this.feedbackType = 'success';
+        this.feedbackMessage = 'Estado actualizado correctamente.';
+        if (kind === 'company') this.loadCompanies();
+        else if (kind === 'user') this.loadUsers();
+        else this.loadCatalogs();
+      },
+      error: (err: { error?: { message?: string } }) => {
+        this.confirmingStatus = false;
+        this.closeStatusConfirm();
+        this.feedbackType = 'error';
+        this.feedbackMessage = err.error?.message || 'Error al cambiar estado';
+      },
     });
   }
 }

@@ -44,9 +44,10 @@
   --gray-canvas: var(--palette-canvas);
   --gray-subtle: var(--palette-canvas);
   --gray-border: #dce1e6;
+  --input-border: #7c8694;
   --gray-text: var(--text-muted);
   --white-card: var(--palette-panel);
-  --border-strong: #a1a1aa;
+  --border-strong: #626b77;
 
   --disabled-surface: #e4e7eb;
   --disabled-text: #59616d;
@@ -79,10 +80,10 @@
   --ui-title-size: 32.4px;
   --ui-balance-size: 50.4px;
 
-  --radius-bento: 14px;
-  --radius-control: 7px;
-  --shadow-bento: 0 2px 4px -2px rgb(24 24 27 / 10%);
-  --shadow-bento-hover: var(--shadow-bento);
+  --radius-bento: 16px;
+  --radius-control: 8px;
+  --shadow-bento: 0 2px 6px -2px rgb(24 24 27 / 8%), 0 1px 2px -1px rgb(24 24 27 / 5%);
+  --shadow-bento-hover: 0 8px 20px -6px rgb(24 24 27 / 12%), 0 2px 6px -2px rgb(24 24 27 / 6%);
   --ui-gap: 20px;
   --ui-card-padding: 24px;
 
