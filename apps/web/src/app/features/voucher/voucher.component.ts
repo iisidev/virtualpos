@@ -102,7 +102,11 @@ import { VoucherDetails } from '../../core/models';
           </div>
 
           <div class="qr-box">
-            <canvas #qrCanvasOriginal></canvas>
+            <canvas
+              #qrCanvasOriginal
+              role="img"
+              [attr.aria-label]="'Código QR de verificación para voucher ' + voucher.voucher_number"
+            ></canvas>
             <div class="hash-text">SIG: {{ voucher.signature_hash.substring(0, 20) }}...</div>
             <div class="receipt-line">VALIDACION FINANCIERA SEGURA</div>
           </div>
@@ -161,7 +165,11 @@ import { VoucherDetails } from '../../core/models';
           <div class="receipt-divider">================================</div>
 
           <div class="qr-box">
-            <canvas #qrCanvasCopy></canvas>
+            <canvas
+              #qrCanvasCopy
+              role="img"
+              [attr.aria-label]="'Código QR copia cliente para voucher ' + voucher.voucher_number"
+            ></canvas>
             <div class="hash-text">SIG: {{ voucher.signature_hash.substring(0, 20) }}...</div>
             <div class="receipt-line">¡GRACIAS POR SU COMPRA!</div>
           </div>
