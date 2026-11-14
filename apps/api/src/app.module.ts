@@ -14,6 +14,7 @@ import { CreditRequestsModule } from './modules/credit-requests/credit-requests.
 import { AuditModule } from './modules/audit/audit.module';
 import { CatalogsModule } from './modules/catalogs/catalogs.module';
 import { UsersModule } from './modules/users/users.module';
+import { AgentModule } from './modules/agent/agent.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { UsersModule } from './modules/users/users.module';
     WhatsAppModule,
     CreditRequestsModule,
     AuditModule,
+    AgentModule,
   ],
 })
 export class AppModule {}
