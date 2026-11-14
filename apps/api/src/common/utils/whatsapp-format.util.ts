@@ -77,3 +77,43 @@ export function formatWhatsAppDateTime(input: Date | string): string {
   const period = pick('dayPeriod').toUpperCase() === 'PM' ? 'p. m.' : 'a. m.';
   return `${pick('day')}/${pick('month')}/${pick('year')}, ${pick('hour')}:${pick('minute')} ${period}`;
 }
+
+/**
+ * Returns the `YYYY-MM-DD` calendar date in Nicaragua (`America/Managua`, UTC-6).
+ */
+export function getManaguaCalendarDate(input: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Managua',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(input);
+
+  const pick = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((p) => p.type === type)?.value ?? '';
+
+  return `${pick('year')}-${pick('month')}-${pick('day')}`;
+}
+
+export function isValidIsoCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return (
+    dt.getUTCFullYear() === y &&
+    dt.getUTCMonth() === m - 1 &&
+    dt.getUTCDate() === d
+  );
+}
+
+export function shiftIsoCalendarDate(isoDate: string, deltaDays: number): string {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  dt.setUTCDate(dt.getUTCDate() + deltaDays);
+  return dt.toISOString().slice(0, 10);
+}
+
+export function formatIsoDateDMY(isoDate: string): string {
+  const [y, m, d] = isoDate.split('-');
+  return `${d}/${m}/${y}`;
+}

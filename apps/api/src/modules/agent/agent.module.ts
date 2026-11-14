@@ -5,6 +5,7 @@ import {
   CreditIncreaseRequest,
   CreditTransaction,
 } from '../../database/entities';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AgentController } from './agent.controller';
 import { AgentService } from './agent.service';
 import { AgentApiKeyGuard } from './agent-api-key.guard';
@@ -16,6 +17,7 @@ import { AgentApiKeyGuard } from './agent-api-key.guard';
       CreditTransaction,
       CreditIncreaseRequest,
     ]),
+    NotificationsModule,
   ],
   controllers: [AgentController],
   providers: [AgentService, AgentApiKeyGuard],

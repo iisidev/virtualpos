@@ -157,7 +157,10 @@ export class WhatsAppNotificationsService {
     return toWhatsAppE164(raw, countryCode);
   }
 
-  private async deliver(client: ClientCreditProfile): Promise<SendResult> {
+  private async deliver(
+    client: ClientCreditProfile,
+    buildMessage?: (target: ClientCreditProfile) => string,
+  ): Promise<SendResult> {
     const fullName = `${client.first_name} ${client.last_name}`.trim();
     const phone = this.toE164(client.whatsapp_phone);
     if (!phone) {
@@ -170,15 +173,17 @@ export class WhatsAppNotificationsService {
       };
     }
 
-    const text = this.buildWelcomeMessage(client.first_name, client.employer_company?.name ?? null);
+    const text = buildMessage
+      ? buildMessage(client)
+      : this.buildWelcomeMessage(client.first_name, client.employer_company?.name ?? null);
     const result = await this.provider.sendText(phone, text);
     return { client_id: client.id, full_name: fullName, phone, ok: result.ok, error: result.error };
   }
 
-  private async audit(
+  async recordAudit(
     action: string,
     entityId: string,
-    userId: string,
+    userId: string | null,
     data: Record<string, unknown>,
   ): Promise<void> {
     await this.auditRepository.save(
@@ -191,6 +196,47 @@ export class WhatsAppNotificationsService {
         created_at: new Date(),
       }),
     );
+  }
+
+  private async audit(
+    action: string,
+    entityId: string,
+    userId: string | null,
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    await this.recordAudit(action, entityId, userId, data);
+  }
+
+  hasRunningJob(): boolean {
+    return this.runningJobId !== null;
+  }
+
+  private async findActiveWhatsAppClients(
+    employerCompanyId?: string,
+  ): Promise<ClientCreditProfile[]> {
+    const qb = this.clientRepository
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.employer_company', 'company')
+      .where('c.credit_status = :status', { status: CreditStatus.ACTIVE })
+      .andWhere(`COALESCE(TRIM(c.whatsapp_phone), '') <> ''`);
+    if (employerCompanyId) {
+      qb.andWhere('c.employer_company_id = :employerCompanyId', { employerCompanyId });
+    }
+    return qb.getMany();
+  }
+
+  async countEligibleRecipients(employerCompanyId?: string): Promise<{
+    with_whatsapp: number;
+    deliverable_e164: number;
+    missing_country_code: number;
+  }> {
+    const clients = await this.findActiveWhatsAppClients(employerCompanyId);
+    const deliverable = clients.filter((c) => this.toE164(c.whatsapp_phone) !== null).length;
+    return {
+      with_whatsapp: clients.length,
+      deliverable_e164: deliverable,
+      missing_country_code: clients.length - deliverable,
+    };
   }
 
   async sendToClient(clientId: string, userId: string): Promise<SendResult> {
@@ -212,20 +258,20 @@ export class WhatsAppNotificationsService {
     return result;
   }
 
-  async startBulk(userId: string, employerCompanyId?: string): Promise<BulkJob> {
+  private async launchBulk(
+    buildMessage: (target: ClientCreditProfile) => string,
+    opts: {
+      userId: string | null;
+      employerCompanyId?: string;
+      auditAction: string;
+      auditMeta?: Record<string, unknown>;
+    },
+  ): Promise<BulkJob> {
     if (this.runningJobId) {
       throw new ConflictException('Ya hay un envío masivo en curso. Espere a que termine.');
     }
 
-    const qb = this.clientRepository
-      .createQueryBuilder('c')
-      .leftJoinAndSelect('c.employer_company', 'company')
-      .where('c.credit_status = :status', { status: CreditStatus.ACTIVE })
-      .andWhere(`COALESCE(TRIM(c.whatsapp_phone), '') <> ''`);
-    if (employerCompanyId) {
-      qb.andWhere('c.employer_company_id = :employerCompanyId', { employerCompanyId });
-    }
-    const clients = await qb.getMany();
+    const clients = await this.findActiveWhatsAppClients(opts.employerCompanyId);
     if (clients.length === 0) {
       throw new BadRequestException('No hay clientes activos con WhatsApp registrado para notificar');
     }
@@ -244,8 +290,32 @@ export class WhatsAppNotificationsService {
     this.jobs.set(job.id, job);
     this.runningJobId = job.id;
 
-    void this.runBulk(job, clients, userId);
+    void this.runBulk(job, clients, buildMessage, opts);
     return job;
+  }
+
+  async startBulk(userId: string, employerCompanyId?: string): Promise<BulkJob> {
+    return this.launchBulk(
+      (c) => this.buildWelcomeMessage(c.first_name, c.employer_company?.name ?? null),
+      { userId, employerCompanyId, auditAction: 'WHATSAPP_WELCOME_BULK' },
+    );
+  }
+
+  async startCustomBulk(
+    customMessage: string,
+    opts: {
+      userId?: string | null;
+      employerCompanyId?: string;
+      auditAction?: string;
+      auditMeta?: Record<string, unknown>;
+    } = {},
+  ): Promise<BulkJob> {
+    return this.launchBulk(() => customMessage, {
+      userId: opts.userId ?? null,
+      employerCompanyId: opts.employerCompanyId,
+      auditAction: opts.auditAction ?? 'WHATSAPP_CUSTOM_BULK',
+      auditMeta: opts.auditMeta,
+    });
   }
 
   getJob(jobId: string): BulkJob {
@@ -258,11 +328,20 @@ export class WhatsAppNotificationsService {
    * Sequential sending with a pause between messages. WhatsApp (QR / unofficial session)
    * can flag bursts of identical messages, so the pace is configurable.
    */
-  private async runBulk(job: BulkJob, clients: ClientCreditProfile[], userId: string): Promise<void> {
+  private async runBulk(
+    job: BulkJob,
+    clients: ClientCreditProfile[],
+    buildMessage: (target: ClientCreditProfile) => string,
+    opts: {
+      userId: string | null;
+      auditAction: string;
+      auditMeta?: Record<string, unknown>;
+    },
+  ): Promise<void> {
     const baseDelay = Number(this.config.get<string>('WHATSAPP_BULK_DELAY_MS') || 4000);
     try {
       for (const client of clients) {
-        const result = await this.deliver(client);
+        const result = await this.deliver(client, buildMessage);
         job.processed += 1;
         if (result.ok) {
           job.sent += 1;
@@ -281,7 +360,8 @@ export class WhatsAppNotificationsService {
       job.status = 'COMPLETED';
       job.finished_at = new Date().toISOString();
       this.runningJobId = null;
-      await this.audit('WHATSAPP_WELCOME_BULK', job.id, userId, {
+      await this.audit(opts.auditAction, job.id, opts.userId, {
+        ...(opts.auditMeta ?? {}),
         total: job.total,
         sent: job.sent,
         failed: job.failed,
