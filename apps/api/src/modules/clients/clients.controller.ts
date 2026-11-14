@@ -4,6 +4,7 @@ import {
   Post,
   Put,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -89,6 +90,21 @@ export class ClientsController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ClientProfileResponse> {
     return this.clientsService.updateStatus(id, dto, user.userId);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.CREDIT_MANAGER, UserRole.SUPER_ADMIN)
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('reason') reason?: string,
+  ): Promise<{ deleted: true; id: string; full_name: string; message: string }> {
+    return this.clientsService.remove(
+      id,
+      user.userId,
+      { role: user.role, companyId: user.companyId },
+      reason,
+    );
   }
 }
 

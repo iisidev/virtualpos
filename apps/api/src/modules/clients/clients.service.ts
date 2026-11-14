@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   OnModuleInit,
@@ -11,6 +12,7 @@ import { Repository } from 'typeorm';
 import { ClientCreditProfile } from '../../database/entities/client-credit-profile.entity';
 import { Company } from '../../database/entities/company.entity';
 import { AuditLog } from '../../database/entities/audit-log.entity';
+import { CreditTransaction } from '../../database/entities/credit-transaction.entity';
 import { CompanyStatus, CreditStatus, UserRole } from '../../common/enums';
 import { CryptoService } from '../../common/crypto/crypto.service';
 import {
@@ -55,7 +57,26 @@ export class ClientsService implements OnModuleInit {
     private readonly auditRepository: Repository<AuditLog>,
     private readonly cryptoService: CryptoService,
     @Optional() private readonly whatsappNotifications?: WhatsAppNotificationsService,
+    @Optional()
+    @InjectRepository(CreditTransaction)
+    private readonly transactionRepository?: Repository<CreditTransaction>,
   ) {}
+
+  private async assertEmployerScope(
+    actorRole?: UserRole,
+    actorCompanyId?: string | null,
+    targetEmployerCompanyId?: string,
+  ): Promise<void> {
+    if (!actorCompanyId || !actorRole || actorRole === UserRole.SUPER_ADMIN || actorRole === UserRole.CASHIER) {
+      return;
+    }
+    const actorCompany = await this.companyRepository.findOne({ where: { id: actorCompanyId } });
+    if (actorCompany?.is_employer && targetEmployerCompanyId && actorCompany.id !== targetEmployerCompanyId) {
+      throw new ForbiddenException(
+        'No tiene permisos para eliminar o modificar clientes de otra empresa empleadora.',
+      );
+    }
+  }
 
   private async validateEmployerCompany(companyId: string): Promise<Company> {
     const company = await this.companyRepository.findOne({ where: { id: companyId } });
@@ -359,6 +380,76 @@ export class ClientsService implements OnModuleInit {
     }
 
     return response;
+  }
+
+  async remove(
+    id: string,
+    userId: string,
+    actor?: { role?: UserRole; companyId?: string | null },
+    reason?: string,
+  ): Promise<{ deleted: true; id: string; full_name: string; message: string }> {
+    const client = await this.clientRepository.findOne({
+      where: { id },
+      relations: { employer_company: true },
+    });
+    if (!client) {
+      throw new NotFoundException('Cliente no encontrado');
+    }
+
+    await this.assertEmployerScope(actor?.role, actor?.companyId, client.employer_company_id);
+
+    const usedBalance = Number(client.used_balance) || 0;
+    if (usedBalance > 0) {
+      throw new ConflictException(
+        `No se puede eliminar a ${client.first_name} ${client.last_name} porque tiene un saldo consumido activo de C$ ${usedBalance.toFixed(2)}.`,
+      );
+    }
+
+    if (this.transactionRepository) {
+      const txCount = await this.transactionRepository.count({
+        where: { client_id: client.id },
+      });
+      if (txCount > 0) {
+        throw new ConflictException(
+          `No se puede eliminar a ${client.first_name} ${client.last_name} porque tiene ${txCount} transacción(es) registradas en el historial financiero. Bloquee su línea de crédito en su lugar para preservar la auditoría.`,
+        );
+      }
+    }
+
+    const fullName = `${client.first_name} ${client.last_name}`.trim();
+    const previousData = {
+      id: client.id,
+      employer_company_id: client.employer_company_id,
+      employer_name: client.employer_company?.name || null,
+      employee_code: client.employee_code,
+      national_id: client.national_id,
+      full_name: fullName,
+      whatsapp_phone: client.whatsapp_phone,
+      approved_limit: client.approved_limit,
+      used_balance: client.used_balance,
+      credit_status: client.credit_status,
+    };
+
+    await this.clientRepository.delete({ id: client.id });
+
+    const trimmedReason = reason?.trim();
+    const audit = this.auditRepository.create({
+      action: 'CLIENT_PROFILE_DELETED',
+      entity_type: 'ClientCreditProfile',
+      entity_id: client.id,
+      previous_data: JSON.stringify(previousData),
+      new_data: trimmedReason ? JSON.stringify({ reason: trimmedReason }) : null,
+      performed_by_user_id: userId,
+      created_at: new Date(),
+    });
+    await this.auditRepository.save(audit);
+
+    return {
+      deleted: true,
+      id: client.id,
+      full_name: fullName,
+      message: `Cliente ${fullName} eliminado correctamente.`,
+    };
   }
 
   private formatResponse(c: ClientCreditProfile, role: UserRole): ClientProfileResponse {

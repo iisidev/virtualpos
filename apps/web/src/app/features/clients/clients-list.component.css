@@ -154,8 +154,109 @@
   flex: 1 1 220px;
 }
 
+.client-actions-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.read-only-tag {
+  font-size: var(--ui-small-size);
+  color: var(--text-muted);
+}
+
+.delete-modal-content {
+  max-width: 560px;
+}
+
+.delete-modal-title {
+  color: var(--red-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.delete-question-box {
+  background: var(--red-subtle);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-control);
+  padding: 14px 16px;
+}
+
+.delete-question {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+
+.delete-hint {
+  margin: 0;
+  font-size: var(--ui-small-size);
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.delete-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  padding: 12px 14px;
+  background: var(--gray-subtle);
+  border: 1px solid var(--gray-border);
+  border-radius: var(--radius-control);
+}
+
+.summary-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+
+.verify-check-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface-input);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  font-size: var(--ui-control-size);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.verify-check-label input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: var(--red-main);
+  flex-shrink: 0;
+}
+
+.ui-btn.danger-btn {
+  background: var(--red-main);
+  color: var(--on-danger);
+  border: 1px solid var(--red-main);
+}
+
+.ui-btn.danger-btn:hover:not(:disabled) {
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
+  color: var(--on-danger);
+}
+
 @container workspace (max-width: 640px) {
   .filter-group {
     flex-basis: 100%;
+  }
+
+  .delete-summary-grid {
+    grid-template-columns: 1fr;
   }
 }
