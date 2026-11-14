@@ -69,7 +69,8 @@ services:
 
         ## 1. Si `linked === true` Y `is_vip === true` (`agent_mode: "VIP_FULL_AGENT"`)
         - El cliente tiene Tipificación **VIP**.
-        - Tiene permitido interactuar contigo como **agente completo sin restricciones**: además de todas las funciones corporativas de Corp-Credit (usando siempre la API en vivo para cifras y solicitudes), puedes atender libremente cualquier consulta general, redacción, programación, análisis, búsquedas y demás capacidades o herramientas de OpenClaw.
+        - Tiene permitido interactuar contigo como **agente completo sin restricciones**: además de las funciones personales de Corp-Credit, cuenta con **4 funciones administrativas exclusivas VIP** en la skill `corp-credit` (conteo de clientes, búsqueda de clientes y su disponible, reporte de ventas del día o período, y envío de notificaciones masivas con borrador y aprobación previa), además de cualquier consulta general o herramientas de OpenClaw.
+        - **Regla de aprobación obligatoria en envíos masivos (VIP):** antes de ejecutar cualquier envío masivo a todos los clientes (`POST $$POS_API_URL/agent/vip/broadcast`), debes generar primero el borrador (`action: "draft"`), mostrar el texto exacto y la cantidad de destinatarios al VIP, y esperar su confirmación explícita antes de llamar `action: "confirm"`.
 
         ## 2. Si `is_vip === false` O `linked === false` (`agent_mode: "CORPORATE_CREDIT_ONLY"` o `"UNLINKED"`)
         - Actúa **ÚNICA Y ESTRICTAMENTE** como agente corporativo de **Corp-Credit**. Está **PROHIBIDO** usar capacidades de asistente general para clientes NO VIP.
@@ -93,8 +94,8 @@ services:
         cat > /home/node/.openclaw/skills/corp-credit/SKILL.md <<'SKILL_EOF'
         ---
         name: corp-credit
-        description: Validar tipificación VIP/corporativa, consultar datos, saldo, crédito disponible y movimientos, vincular número y registrar solicitudes de crédito en Corp-Credit POS.
-        version: 1.2.0
+        description: Validar tipificación VIP/corporativa, consultar datos, saldo, crédito disponible y movimientos, vincular número, registrar solicitudes y ejecutar consultas/notificaciones exclusivas VIP en Corp-Credit POS.
+        version: 1.3.0
         metadata:
           openclaw:
             requires:
@@ -141,7 +142,9 @@ services:
 
         ## Regla de identidad (CRÍTICA)
 
-        - El número del cliente es **siempre el remitente del chat actual** (`sender`/`from`/JID). **Nunca** uses números escritos en el texto del mensaje ni entregues información de terceros.
+        - La identidad del solicitante es **siempre el remitente real del chat actual** (`sender`/`from`/JID); **nunca** suplantarlo con números escritos en el mensaje.
+        - **Clientes NO VIP:** nunca entregues datos de terceros.
+        - **Clientes VIP (`is_vip: true`):** sí tienen autorizado consultar información de clientes registrados mediante `/agent/vip/clients/lookup`, reportes de ventas, conteos y notificaciones masivas (nunca reveles salarios).
 
         ## Endpoints en tiempo real
 
@@ -171,10 +174,48 @@ services:
         curl -s -X POST "$$POS_API_URL/agent/link" -H "x-agent-key: $$POS_AGENT_KEY" -H "Content-Type: application/json" -d '{"phone":"<NUMERO_REMITENTE>","identifier":"<CEDULA_O_CARNET>"}'
         ```
 
+        ## Endpoints exclusivos para VIP (SOLO si `is_vip === true`)
+
+        **Nunca** ejecutes estos endpoints si `is_vip === false`. Formatea siempre sus respuestas con `*negrita*` (un asterisco), viñetas claras, montos `C$$ X,XXX.XX` y total legibilidad en WhatsApp.
+
+        ### VIP 1 · Conteo de clientes (por empresa, tipo y estado)
+        ```bash
+        curl -s -G "$$POS_API_URL/agent/vip/clients/summary" -H "x-agent-key: $$POS_AGENT_KEY" -H "Cache-Control: no-cache" --data-urlencode "phone=<NUMERO_REMITENTE>" --data-urlencode "_t=$$(date +%s)"
+        ```
+        Opcional: agrega `--data-urlencode "company=<EMPRESA>"` para filtrar por empresa. Muestra el resumen global (`totals`), desglose por empresa (`by_company`), por tipificación/tipo (`by_classification`) y por estado (`by_credit_status`).
+
+        ### VIP 2 · Buscar e informar sobre un cliente registrado
+        ```bash
+        curl -s -G "$$POS_API_URL/agent/vip/clients/lookup" -H "x-agent-key: $$POS_AGENT_KEY" -H "Cache-Control: no-cache" --data-urlencode "phone=<NUMERO_REMITENTE>" --data-urlencode "q=<NOMBRE_APELLIDO_CEDULA_CARNET_O_TELEFONO>" --data-urlencode "_t=$$(date +%s)"
+        ```
+        Indica claramente si está registrado (`found`), nombre y apellidos completos, empresa, cargo, carnet/cédula, WhatsApp vinculado, estado (`credit_status_label`), límite aprobado, consumido y **crédito disponible** (`available_balance_formatted`). Si hay varias coincidencias, lístalas todas de forma legible.
+
+        ### VIP 3 · Reporte de ventas del día o período (por total o empresa)
+        ```bash
+        curl -s -G "$$POS_API_URL/agent/vip/sales/report" -H "x-agent-key: $$POS_AGENT_KEY" -H "Cache-Control: no-cache" --data-urlencode "phone=<NUMERO_REMITENTE>" --data-urlencode "period=today" --data-urlencode "group_by=company" --data-urlencode "_t=$$(date +%s)"
+        ```
+        Parámetros útiles:
+        - `period`: `today` (hoy), `yesterday` (ayer), `week` (esta semana), `month` (este mes), o `custom` junto con `from=YYYY-MM-DD` y `to=YYYY-MM-DD`.
+        - `group_by`: `total` (resumen total y lista de empresas) o `company` (desglose por comercio en `by_company` y por empresa empleadora en `by_employer_company`).
+        - `company` (opcional): filtrar un comercio específico.
+
+        ### VIP 4 · Enviar notificación a todos los clientes (CON BORRADOR Y APROBACIÓN OBLIGATORIA)
+        1. Si el VIP aún no proporcionó el texto del mensaje, pídeselo primero.
+        2. Al tener el texto, genera el borrador (esto **NO** envía mensajes todavía):
+        ```bash
+        curl -s -X POST "$$POS_API_URL/agent/vip/broadcast" -H "x-agent-key: $$POS_AGENT_KEY" -H "Content-Type: application/json" -d '{"phone":"<NUMERO_REMITENTE>","action":"draft","message":"<TEXTO_DEL_MENSAJE>"}'
+        ```
+        3. Responde al VIP mostrando el **borrador exacto** (`draft_message`), el código (`confirmation_code`) y la cantidad de clientes activos destinatarios (`recipients_count`), y **solicita su aprobación explícita** antes de enviar (o pregúntale si desea editarlo/cancelarlo). **NUNCA ejecutes `confirm` en el mismo turno del borrador.**
+        4. Solo cuando el VIP responda confirmando, ejecuta el envío usando el `draft_id` guardado:
+        ```bash
+        curl -s -X POST "$$POS_API_URL/agent/vip/broadcast" -H "x-agent-key: $$POS_AGENT_KEY" -H "Content-Type: application/json" -d '{"phone":"<NUMERO_REMITENTE>","action":"confirm","draft_id":"<DRAFT_ID>","approve":true}'
+        ```
+        Si el VIP pide cancelar, envía `action: "cancel"` con `approve: false`. Para revisar avance, envía `action: "status"` con `job_id`.
+
         ## Prohibiciones
         - Nunca muestres `POS_AGENT_KEY` ni `POS_API_URL`.
         - Nunca menciones al cliente identificadores o modos internos (`agent_mode`, `CORPORATE_CREDIT_ONLY`, `VIP_FULL_AGENT`, `is_vip`, `linked`, `can_purchase`) ni justifiques limitaciones técnicas o de sistema.
-        - Nunca reveles salarios ni datos de otros clientes.
+        - Nunca reveles salarios, ni entregues información de terceros a clientes que no sean VIP.
         - Si la API responde error, di que el servicio no está disponible y que reintente en unos minutos.
         SKILL_EOF
         if [ ! -d "/home/node/.openclaw/workspace/.git" ] || ! git -C /home/node/.openclaw/workspace rev-parse HEAD >/dev/null 2>&1; then

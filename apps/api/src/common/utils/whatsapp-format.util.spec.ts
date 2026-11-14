@@ -11,7 +11,11 @@ import {
   TRANSACTION_TYPE_LABELS,
   formatAmount,
   formatCordoba,
+  formatIsoDateDMY,
   formatWhatsAppDateTime,
+  getManaguaCalendarDate,
+  isValidIsoCalendarDate,
+  shiftIsoCalendarDate,
   translateEnumLabel,
 } from './whatsapp-format.util';
 
@@ -46,5 +50,16 @@ describe('whatsapp-format.util', () => {
     expect(
       translateEnumLabel(IncreaseRequestStatus.PENDING, INCREASE_REQUEST_STATUS_LABELS),
     ).toBe('Pendiente de revisión');
+  });
+
+  it('computes Nicaragua local dates and shifts calendar days accurately', () => {
+    // 2026-11-15T04:30:00Z is still 2026-11-14 22:30 in Managua
+    const lateNight = new Date('2026-11-15T04:30:00.000Z');
+    const localDay = getManaguaCalendarDate(lateNight);
+    expect(localDay).toBe('2026-11-14');
+    expect(shiftIsoCalendarDate(localDay, -1)).toBe('2026-11-13');
+    expect(formatIsoDateDMY(localDay)).toBe('14/11/2026');
+    expect(isValidIsoCalendarDate('2026-11-14')).toBe(true);
+    expect(isValidIsoCalendarDate('2026-02-30')).toBe(false);
   });
 });
