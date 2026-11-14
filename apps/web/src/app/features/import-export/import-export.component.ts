@@ -7,6 +7,7 @@ import {
   ImportBatchLog,
 } from '../../core/services/import-export.service';
 import { StatusBannerComponent } from '../../shared/status-banner.component';
+import { formatBatchActionLabel } from '../../shared/ui-labels';
 
 @Component({
   selector: 'app-import-export',
@@ -17,7 +18,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
       <div class="page-header bento-card">
         <div>
           <h1><i class="file excel outline icon" aria-hidden="true"></i> Importación y Exportación Masiva</h1>
-          <p>Motor transaccional con validación previa (Dry-Run) y descarga de plantillas oficiales</p>
+          <p>Motor transaccional con validación previa y descarga de plantillas oficiales</p>
         </div>
       </div>
 
@@ -28,7 +29,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
       ></app-status-banner>
 
       <div class="bento-grid">
-        <!-- STEP 1: DOWNLOAD TEMPLATES (4 COLS) -->
+        <!-- Paso 1: descarga de plantillas -->
         <div class="bento-card ui-col-4 ui-col-tablet-full">
           <div class="card-title">
             <span class="step-circle">1</span>
@@ -67,11 +68,11 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
           </div>
         </div>
 
-        <!-- STEP 2: UPLOAD & DRY-RUN (8 COLS) -->
+        <!-- Paso 2: carga y validación previa -->
         <div class="bento-card ui-col-8">
           <div class="card-title">
             <span class="step-circle">2</span>
-            <h2>Carga y Previsualización Transaccional (Dry-Run)</h2>
+            <h2>Carga y Previsualización Transaccional (Validación previa)</h2>
           </div>
           <p class="card-desc">Cargue su archivo para validar formato, duplicados y reglas financieras antes de aplicar a la base de datos:</p>
 
@@ -155,7 +156,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
                           blocked: row.action === 'ERROR'
                         }"
                       >
-                        {{ row.action }}
+                        {{ formatBatchActionLabel(row.action) }}
                       </span>
                     </td>
                     <td><strong class="ui-mono">{{ row.identifier }}</strong></td>
@@ -181,7 +182,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
           </div>
         </div>
 
-        <!-- BATCH LOGS HISTORY (12 COLS) -->
+        <!-- Historial de lotes importados -->
         <div class="bento-card ui-col-12">
           <div class="card-title logs-header">
             <div class="logs-title-group">
@@ -244,6 +245,7 @@ import { StatusBannerComponent } from '../../shared/status-banner.component';
 })
 export class ImportExportComponent implements OnInit {
   private readonly importService = inject(ImportExportService);
+  readonly formatBatchActionLabel = formatBatchActionLabel;
 
   selectedType = 'CLIENTS';
   dryRunResult: DryRunResult | null = null;
@@ -354,7 +356,7 @@ export class ImportExportComponent implements OnInit {
       error: (err) => {
         this.runningDryRun = false;
         this.feedbackType = 'error';
-        this.feedbackMessage = err.error?.message || 'Error al ejecutar Dry-Run';
+        this.feedbackMessage = err.error?.message || 'Error al ejecutar validación previa';
       },
     });
   }

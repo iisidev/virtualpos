@@ -44,7 +44,7 @@ interface SimulatedInteraction {
       </div>
 
       <div class="bento-grid">
-        <!-- OPENCLAW GATEWAY STATUS (4 COLS) -->
+        <!-- Estado de OpenClaw Gateway -->
         <div class="bento-card ui-col-4">
           <div class="card-title">
             <i class="server icon" aria-hidden="true"></i>
@@ -55,10 +55,10 @@ interface SimulatedInteraction {
           <div class="status-box">
             <div class="status-indicator">
               <i class="plug icon" aria-hidden="true"></i>
-              <strong>CONFIGURACIÓN OPENCLAW (DOCKER)</strong>
+              <strong>Configuración OpenClaw (Docker)</strong>
             </div>
             <div class="meta-row">
-              <span>Gateway Image:</span>
+              <span>Imagen Docker:</span>
               <strong class="ui-mono meta-mono-small">ghcr.io/openclaw/openclaw:latest</strong>
             </div>
             <div class="meta-row">
@@ -70,7 +70,7 @@ interface SimulatedInteraction {
               <strong class="ui-mono">18789 (openclaw-gateway)</strong>
             </div>
             <div class="meta-row">
-              <span>Token Acceso UI:</span>
+              <span>Token de acceso:</span>
               <code class="token-code">pos_virtual_claw_token_2026</code>
             </div>
             <div class="meta-row">
@@ -94,7 +94,7 @@ interface SimulatedInteraction {
             </div>
             <div class="feature-item">
               <i class="check circle icon" aria-hidden="true"></i>
-              Cero Dependencias de Mocks o IA Externa
+              Procesamiento determinístico en servidor
             </div>
           </div>
 
@@ -111,7 +111,7 @@ interface SimulatedInteraction {
           </div>
         </div>
 
-        <!-- QR CORPORATIVO DE ENLACE (4 COLS) -->
+        <!-- Código QR corporativo de enlace -->
         <div class="bento-card ui-col-4 qr-bento-card">
           <div class="card-title card-title-centered">
             <i class="qrcode icon" aria-hidden="true"></i>
@@ -122,6 +122,8 @@ interface SimulatedInteraction {
           <div class="qr-canvas-box">
             <canvas
               #waQRCanvas
+              width="150"
+              height="150"
               role="img"
               aria-label="Código QR para iniciar conversación de WhatsApp Corporativo en POS VIRTUAL"
             ></canvas>
@@ -136,7 +138,7 @@ interface SimulatedInteraction {
           </button>
         </div>
 
-        <!-- SIMULADOR INTERACTIVO EN VIVO (4 COLS) -->
+        <!-- Simulador interactivo en vivo -->
         <div class="bento-card ui-col-4 ui-col-tablet-full">
           <div class="card-title">
             <i class="terminal icon" aria-hidden="true"></i>
@@ -193,7 +195,7 @@ interface SimulatedInteraction {
           </div>
         </div>
 
-        <!-- TERMINAL DE RESPUESTA Y BITÁCORA EN TIEMPO REAL (12 COLS) -->
+        <!-- Bitácora de respuestas en tiempo real -->
         <div class="bento-card ui-col-12">
           <div class="card-title">
             <i class="comments icon" aria-hidden="true"></i>
@@ -213,7 +215,7 @@ interface SimulatedInteraction {
                 <strong>Mensaje Enviado:</strong> "{{ it.message }}"
               </div>
               <div class="backend-reply">
-                <div class="reply-badge">Respuesta Generada por Sistema:</div>
+                <div class="reply-badge">Respuesta del sistema:</div>
                 <pre>{{ it.reply }}</pre>
               </div>
             </div>

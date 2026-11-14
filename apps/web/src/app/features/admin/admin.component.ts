@@ -5,6 +5,11 @@ import { Observable } from 'rxjs';
 import { AdminService } from '../../core/services/admin.service';
 import { StatusBannerComponent } from '../../shared/status-banner.component';
 import {
+  formatCatalogCategoryLabel,
+  formatCompanyStatusLabel,
+  formatRoleLabel,
+} from '../../shared/ui-labels';
+import {
   Company,
   CreateCompanyPayload,
   UpdateCompanyPayload,
@@ -74,7 +79,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
         (dismiss)="feedbackMessage = ''"
       ></app-status-banner>
 
-      <!-- TAB 1: EMPRESAS -->
+      <!-- Pestaña de empresas -->
       <div *ngIf="activeTab === 'companies'" class="tab-content">
         <!-- Stats Ribbon -->
         <div class="bento-grid stats-grid">
@@ -88,7 +93,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
           </div>
           <div class="bento-card stat-item">
             <span class="stat-label">Comercios Afiliados (POS)</span>
-            <span class="stat-value text-blue">{{ merchantCount }}</span>
+            <span class="stat-value text-accent">{{ merchantCount }}</span>
           </div>
         </div>
 
@@ -153,7 +158,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                   </td>
                   <td>
                     <span class="badge-status" [class.active]="c.status === 'ACTIVE'" [class.blocked]="c.status !== 'ACTIVE'">
-                      {{ c.status }}
+                      {{ formatCompanyStatusLabel(c.status) }}
                     </span>
                   </td>
                   <td class="text-right">
@@ -182,7 +187,17 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                   </td>
                 </tr>
                 <tr *ngIf="filteredCompanies.length === 0">
-                  <td colspan="8" class="empty-state">No se encontraron empresas registradas.</td>
+                  <td colspan="8" class="empty-state">
+                    <div>No se encontraron empresas registradas.</div>
+                    <button
+                      *ngIf="searchCompany"
+                      type="button"
+                      class="ui-btn secondary-btn empty-reset-btn"
+                      (click)="searchCompany = ''"
+                    >
+                      Limpiar búsqueda
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -190,7 +205,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
         </div>
       </div>
 
-      <!-- TAB 2: USUARIOS Y ROLES (RBAC) -->
+      <!-- Pestaña de usuarios y roles -->
       <div *ngIf="activeTab === 'users'" class="tab-content">
         <!-- Stats Ribbon -->
         <div class="bento-grid stats-grid">
@@ -260,14 +275,14 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                   <td><strong>{{ u.full_name }}</strong></td>
                   <td>
                     <span class="role-badge" [ngClass]="getRoleBadgeClass(u.role)">
-                      {{ u.role }}
+                      {{ formatRoleLabel(u.role) }}
                     </span>
                   </td>
                   <td>{{ u.company_name || 'Acceso Global / Grupo' }}</td>
                   <td class="ui-mono">{{ u.created_at | date: 'dd/MM/yyyy' }}</td>
                   <td>
                     <span class="badge-status" [class.active]="u.is_active" [class.blocked]="!u.is_active">
-                      {{ u.is_active ? 'ACTIVO' : 'INACTIVO' }}
+                      {{ u.is_active ? 'Activo' : 'Inactivo' }}
                     </span>
                   </td>
                   <td class="text-right">
@@ -296,7 +311,17 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                   </td>
                 </tr>
                 <tr *ngIf="filteredUsers.length === 0">
-                  <td colspan="7" class="empty-state">No se encontraron usuarios.</td>
+                  <td colspan="7" class="empty-state">
+                    <div>No se encontraron usuarios.</div>
+                    <button
+                      *ngIf="searchUser"
+                      type="button"
+                      class="ui-btn secondary-btn empty-reset-btn"
+                      (click)="searchUser = ''"
+                    >
+                      Limpiar búsqueda
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -304,7 +329,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
         </div>
       </div>
 
-      <!-- TAB 3: CATALOGOS MAESTROS -->
+      <!-- Pestaña de catálogos maestros -->
       <div *ngIf="activeTab === 'catalogs'" class="tab-content">
         <!-- Sub Category Filter Pills -->
         <div class="bento-card action-bar">
@@ -377,7 +402,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                 <tr *ngFor="let cat of filteredCatalogs">
                   <td>
                     <span class="badge" [ngClass]="getCatalogCategoryClass(cat.category)">
-                      {{ cat.category }}
+                      {{ formatCatalogCategoryLabel(cat.category) }}
                     </span>
                   </td>
                   <td><code>{{ cat.code }}</code></td>
@@ -386,7 +411,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                   <td>{{ cat.order_index }}</td>
                   <td>
                     <span class="badge-status" [class.active]="cat.is_active" [class.blocked]="!cat.is_active">
-                      {{ cat.is_active ? 'ACTIVO' : 'INACTIVO' }}
+                      {{ cat.is_active ? 'Activo' : 'Inactivo' }}
                     </span>
                   </td>
                   <td class="text-right">
@@ -423,7 +448,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
         </div>
       </div>
 
-      <!-- MODAL: EMPRESA -->
+      <!-- Modal empresa -->
       <div
         *ngIf="showCompanyModal"
         class="modal-backdrop"
@@ -535,6 +560,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                 Cancelar
               </button>
               <button type="submit" class="ui-btn primary-btn" [disabled]="savingCompany">
+                <i class="save icon" *ngIf="!savingCompany" aria-hidden="true"></i>
                 {{ savingCompany ? 'Guardando...' : (editingCompanyId ? 'Actualizar' : 'Guardar Empresa') }}
               </button>
             </div>
@@ -542,7 +568,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
         </div>
       </div>
 
-      <!-- MODAL: USUARIO -->
+      <!-- Modal usuario -->
       <div
         *ngIf="showUserModal"
         class="modal-backdrop"
@@ -606,10 +632,10 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
               <div class="form-group flex-1">
                 <label for="user-role">Rol de Sistema *</label>
                 <select id="user-role" class="form-input" [(ngModel)]="userForm.role" name="role" required>
-                  <option value="SUPER_ADMIN">SUPER_ADMIN (Control Total)</option>
-                  <option value="CREDIT_MANAGER">CREDIT_MANAGER (Analista de Crédito)</option>
-                  <option value="CASHIER">CASHIER (Operador de Caja POS)</option>
-                  <option value="AUDITOR">AUDITOR (Auditor Solo Lectura)</option>
+                  <option value="SUPER_ADMIN">Super Administrador (Control Total)</option>
+                  <option value="CREDIT_MANAGER">Gestor de Crédito (Analista)</option>
+                  <option value="CASHIER">Cajero POS (Operador de Caja)</option>
+                  <option value="AUDITOR">Auditor (Solo Lectura)</option>
                 </select>
               </div>
 
@@ -629,6 +655,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                 Cancelar
               </button>
               <button type="submit" class="ui-btn primary-btn" [disabled]="savingUser">
+                <i class="save icon" *ngIf="!savingUser" aria-hidden="true"></i>
                 {{ savingUser ? 'Guardando...' : (editingUserId ? 'Actualizar Usuario' : 'Crear Usuario') }}
               </button>
             </div>
@@ -636,7 +663,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
         </div>
       </div>
 
-      <!-- MODAL: CATALOGO -->
+      <!-- Modal catálogo -->
       <div
         *ngIf="showCatalogModal"
         class="modal-backdrop"
@@ -728,6 +755,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
                 Cancelar
               </button>
               <button type="submit" class="ui-btn primary-btn" [disabled]="savingCatalog">
+                <i class="save icon" *ngIf="!savingCatalog" aria-hidden="true"></i>
                 {{ savingCatalog ? 'Guardando...' : (editingCatalogId ? 'Actualizar' : 'Guardar') }}
               </button>
             </div>
@@ -735,7 +763,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
         </div>
       </div>
 
-      <!-- MODAL: CONFIRMAR CAMBIO DE ESTADO -->
+      <!-- Modal confirmar cambio de estado -->
       <div
         *ngIf="pendingStatusConfirm"
         class="modal-backdrop"
@@ -757,6 +785,7 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
               Cancelar
             </button>
             <button type="button" class="ui-btn primary-btn" (click)="executeStatusToggle()" [disabled]="confirmingStatus">
+              <i class="check icon" *ngIf="!confirmingStatus" aria-hidden="true"></i>
               {{ confirmingStatus ? 'Aplicando...' : 'Confirmar' }}
             </button>
           </div>
@@ -768,6 +797,9 @@ type AdminTab = 'companies' | 'users' | 'catalogs';
 })
 export class AdminComponent implements OnInit {
   private readonly adminService = inject(AdminService);
+  readonly formatCatalogCategoryLabel = formatCatalogCategoryLabel;
+  readonly formatCompanyStatusLabel = formatCompanyStatusLabel;
+  readonly formatRoleLabel = formatRoleLabel;
 
   activeTab: AdminTab = 'companies';
 

@@ -34,7 +34,7 @@ export class AdminService {
     });
   }
 
-  // ================= COMPANY CRUD =================
+  // Gestión de empresas.
   getCompanies(): Observable<Company[]> {
     return this.http.get<Company[]>(`${getApiBaseUrl()}/companies`, {
       headers: this.getHeaders(),
@@ -71,7 +71,7 @@ export class AdminService {
     });
   }
 
-  // ================= USER CRUD (RBAC) =================
+  // Gestión de usuarios y roles.
   getUsers(): Observable<AdminUser[]> {
     return this.http.get<AdminUser[]>(`${getApiBaseUrl()}/users`, {
       headers: this.getHeaders(),
@@ -96,7 +96,7 @@ export class AdminService {
     });
   }
 
-  // ================= CATALOG CRUD =================
+  // Gestión de catálogos.
   getCatalogs(category?: CatalogCategory): Observable<CatalogItem[]> {
     let url = `${getApiBaseUrl()}/catalogs`;
     if (category) {
@@ -125,7 +125,7 @@ export class AdminService {
     });
   }
 
-  // ================= CLIENT CRUD =================
+  // Gestión de clientes.
   createClient(payload: CreateClientPayload): Observable<ClientProfile> {
     return this.http.post<ClientProfile>(`${getApiBaseUrl()}/clients`, payload, {
       headers: this.getHeaders(),
