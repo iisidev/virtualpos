@@ -20,9 +20,9 @@ import {
         </div>
       </div>
 
-      <div class="bento-grid" style="margin-top: 1.25rem;">
+      <div class="bento-grid">
         <!-- STEP 1: DOWNLOAD TEMPLATES (4 COLS) -->
-        <div class="bento-card" style="grid-column: span 4;">
+        <div class="bento-card ui-col-4">
           <div class="card-title">
             <span class="step-circle">1</span>
             <h3>Descargar Plantillas</h3>
@@ -30,20 +30,20 @@ import {
           <p class="card-desc">Obtenga los archivos base en Excel con el formato exacto requerido:</p>
 
           <div class="template-buttons">
-            <button class="ui fluid basic primary button" (click)="download('clients')">
-              <i class="download icon"></i> Plantilla Clientes Nuevos (.xlsx)
+            <button type="button" class="ui fluid basic primary button" (click)="download('clients')">
+              <i class="download icon" aria-hidden="true"></i> Plantilla Clientes Nuevos (.xlsx)
             </button>
-            <button class="ui fluid basic primary button" (click)="download('credit_limits')">
-              <i class="download icon"></i> Plantilla Aumento de Límites (.xlsx)
+            <button type="button" class="ui fluid basic primary button" (click)="download('credit_limits')">
+              <i class="download icon" aria-hidden="true"></i> Plantilla Aumento de Límites (.xlsx)
             </button>
-            <button class="ui fluid basic primary button" (click)="download('payments')">
-              <i class="download icon"></i> Plantilla Abonos de Planilla (.xlsx)
+            <button type="button" class="ui fluid basic primary button" (click)="download('payments')">
+              <i class="download icon" aria-hidden="true"></i> Plantilla Abonos de Planilla (.xlsx)
             </button>
           </div>
         </div>
 
         <!-- STEP 2: UPLOAD & DRY-RUN (8 COLS) -->
-        <div class="bento-card" style="grid-column: span 8;">
+        <div class="bento-card ui-col-8">
           <div class="card-title">
             <span class="step-circle">2</span>
             <h3>Carga y Previsualización Transaccional (Dry-Run)</h3>
@@ -63,8 +63,8 @@ import {
             <div class="control-field">
               <label>Seleccionar Archivo (o Simular Lote):</label>
               <div class="action-buttons-row">
-                <button class="ui teal button" (click)="loadDemoBatch()">
-                  <i class="magic icon"></i> Cargar Lote de Prueba (5 Filas)
+                <button type="button" class="ui teal button" (click)="loadDemoBatch()">
+                  <i class="magic icon" aria-hidden="true"></i> Cargar Lote de Prueba (5 Filas)
                 </button>
               </div>
             </div>
@@ -102,8 +102,8 @@ import {
             </div>
 
             <!-- Preview Data Table -->
-            <div class="table-responsive" style="margin-top: 1.25rem; max-height: 250px; overflow-y: auto;">
-              <table class="ui very compact table">
+            <div class="table-responsive preview-table-scroll">
+              <table class="ui compact table">
                 <thead>
                   <tr>
                     <th>Fila</th>
@@ -114,7 +114,7 @@ import {
                 </thead>
                 <tbody>
                   <tr *ngFor="let row of dryRunResult.preview_data">
-                    <td>{{ row.row }}</td>
+                    <td class="ui-mono">{{ row.row }}</td>
                     <td>
                       <span
                         class="badge-status"
@@ -127,7 +127,7 @@ import {
                         {{ row.action }}
                       </span>
                     </td>
-                    <td><strong>{{ row.identifier }}</strong></td>
+                    <td><strong class="ui-mono">{{ row.identifier }}</strong></td>
                     <td>{{ row.description }}</td>
                   </tr>
                 </tbody>
@@ -135,13 +135,14 @@ import {
             </div>
 
             <!-- Commit Button -->
-            <div class="commit-bar" style="margin-top: 1.25rem;">
+            <div class="commit-bar">
               <button
+                type="button"
                 class="ui positive large button"
                 [disabled]="dryRunResult.error_count > 0 || committing"
                 (click)="commitImport()"
               >
-                <i class="check circle icon"></i>
+                <i class="check circle icon" aria-hidden="true"></i>
                 <span *ngIf="!committing">Confirmar y Aplicar Transacción ({{ dryRunResult.valid_rows }} Filas)</span>
                 <span *ngIf="committing">Aplicando cambios en BD...</span>
               </button>
@@ -150,14 +151,14 @@ import {
         </div>
 
         <!-- BATCH LOGS HISTORY (12 COLS) -->
-        <div class="bento-card" style="grid-column: span 12;">
+        <div class="bento-card ui-col-12">
           <div class="card-title">
-            <i class="history icon"></i>
+            <i class="history icon" aria-hidden="true"></i>
             <h3>Historial de Lotes Importados (Trazabilidad Total)</h3>
           </div>
 
-          <div class="table-responsive" style="margin-top: 1rem;">
-            <table class="ui very basic table">
+          <div class="table-responsive logs-table-wrap">
+            <table class="ui table">
               <thead>
                 <tr>
                   <th>Fecha y Hora</th>
@@ -171,16 +172,16 @@ import {
               </thead>
               <tbody>
                 <tr *ngFor="let log of batchLogs">
-                  <td>{{ log.created_at | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
-                  <td><strong>{{ log.file_name }}</strong></td>
+                  <td class="ui-mono">{{ log.created_at | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
+                  <td><strong class="ui-mono">{{ log.file_name }}</strong></td>
                   <td>{{ log.import_type }}</td>
-                  <td>{{ log.total_rows }}</td>
-                  <td><span class="ui green text">{{ log.successful_rows }}</span></td>
-                  <td><span class="ui red text">{{ log.error_rows }}</span></td>
+                  <td class="ui-mono">{{ log.total_rows }}</td>
+                  <td><span class="ui-mono log-ok">{{ log.successful_rows }}</span></td>
+                  <td><span class="ui-mono log-err">{{ log.error_rows }}</span></td>
                   <td>{{ log.executed_by?.full_name || 'Admin' }}</td>
                 </tr>
                 <tr *ngIf="batchLogs.length === 0">
-                  <td colspan="7" style="text-align: center; color: var(--gray-text); padding: 1.5rem;">
+                  <td colspan="7" class="empty-table-cell">
                     No se registran importaciones previas en la bitácora.
                   </td>
                 </tr>
@@ -191,147 +192,7 @@ import {
       </div>
     </div>
   `,
-  styles: [
-    `
-      .import-page {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .page-header {
-        padding: 1.25rem 1.5rem;
-      }
-
-      .page-header h2 {
-        margin: 0;
-        font-weight: 800;
-      }
-
-      .page-header p {
-        margin: 0.25rem 0 0;
-        color: var(--gray-text);
-      }
-
-      .card-title {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 0.5rem;
-      }
-
-      .card-title h3 {
-        margin: 0;
-        font-weight: 800;
-        font-size: 1.15rem;
-      }
-
-      .step-circle {
-        width: 28px;
-        height: 28px;
-        background: var(--navy-900);
-        color: #FFFFFF;
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        font-size: 0.85rem;
-      }
-
-      .card-desc {
-        color: var(--gray-text);
-        font-size: 0.85rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .template-buttons {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-      }
-
-      .upload-controls {
-        display: flex;
-        gap: 1.5rem;
-        align-items: flex-end;
-        background: var(--gray-subtle);
-        padding: 1.25rem;
-        border-radius: 0.75rem;
-      }
-
-      .control-field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-        flex: 1;
-      }
-
-      .control-field label {
-        font-size: 0.8rem;
-        font-weight: 700;
-        color: var(--navy-800);
-      }
-
-      .select-box {
-        padding: 0.65rem 0.85rem;
-        border: 1px solid var(--gray-border);
-        border-radius: 0.5rem;
-        font-size: 0.9rem;
-        outline: none;
-      }
-
-      .metrics-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1rem;
-        margin-top: 1.25rem;
-      }
-
-      .metric-card {
-        background: var(--gray-subtle);
-        padding: 1rem;
-        border-radius: 0.75rem;
-        border: 1px solid var(--gray-border);
-        display: flex;
-        flex-direction: column;
-        text-align: center;
-      }
-
-      .metric-card .val {
-        font-size: 1.75rem;
-        font-weight: 800;
-      }
-
-      .metric-card .lbl {
-        font-size: 0.75rem;
-        color: var(--gray-text);
-        font-weight: 600;
-        margin-top: 0.25rem;
-      }
-
-      .metric-card.new .val {
-        color: var(--emerald-main);
-      }
-
-      .metric-card.update .val {
-        color: var(--amber-main);
-      }
-
-      .metric-card.error.has-errors {
-        background: var(--red-subtle);
-        border-color: var(--red-border);
-      }
-
-      .metric-card.error.has-errors .val {
-        color: var(--red-main);
-      }
-
-      .commit-bar {
-        display: flex;
-        justify-content: flex-end;
-      }
-    `,
-  ],
+  styleUrl: './import-export.component.css',
 })
 export class ImportExportComponent implements OnInit {
   private readonly importService = inject(ImportExportService);
